@@ -1,0 +1,1 @@
+/opt/kiali/kiali

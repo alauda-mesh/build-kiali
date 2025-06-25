@@ -132,7 +132,7 @@ runs:
           sudo melange build $config \
             --arch ${{ inputs.archs }} \
             --out-dir ${{ inputs.repository-path }} \
-            --build-date "1970-01-01T00:00:01Z" \
+            --build-date "1980-01-01T00:00:00Z" \
             $signarg $repoarg $keyringarg $workspacearg $indexarg $nsarg $cachearg $pipelinedirarg $gitcommitarg $gitrepoarg
         done
     - name: 'Fix local repository permissions'
