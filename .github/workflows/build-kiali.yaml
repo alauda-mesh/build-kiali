@@ -1,0 +1,142 @@
+name: Build Kiali Images
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/build-kiali.yaml"
+      - "configs/kiali/**"
+      - "wolfi/**.yaml"
+  workflow_dispatch:
+    inputs:
+      epoch:
+        description: Release epoch
+        required: true
+        type: number
+        default: 0
+
+jobs:
+  build-packages:
+    name: Build kiali packages (${{ matrix.arch }})
+    runs-on: ${{ matrix.arch == 'aarch64' && 'ubuntu-22.04-arm' || 'ubuntu-latest' }}
+    strategy:
+      matrix:
+        arch: [x86_64, aarch64]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Generate kiali package list
+        run: |
+          cd wolfi
+          # Create package list
+          APK_LIST=$(find *.yaml -type 'f' | tr '\n' ',')
+          echo "APK_LIST=$APK_LIST" >> $GITHUB_ENV
+
+      # Write the signing key from GitHub Secret
+      - name: Write signing key
+        run: |
+          echo "${{ secrets.MELANGE_SIGNING_KEY }}" > /tmp/melange.rsa
+          chmod 600 /tmp/melange.rsa
+
+      - name: Setup melange tool
+        uses: chainguard-dev/actions/setup-melange@main
+        with:
+          version: v0.26.13
+
+      - name: Build kiali packages
+        uses: ./.github/actions/melange-build-pkg
+        with:
+          multi-config: ${{ env.APK_LIST }}
+          archs: ${{ matrix.arch }}
+          sign-with-key: true
+          signing-key-path: /tmp/melange.rsa
+          repository-append: https://packages.wolfi.dev/os
+          keyring-append: https://packages.wolfi.dev/os/wolfi-signing.rsa.pub
+          workdir: ./wolfi
+
+      - name: Upload packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: packages-${{ matrix.arch }}
+          path: packages
+
+  generate-kiali-version:
+    name: Generate kiali version matrix
+    runs-on: ubuntu-latest
+
+    outputs:
+      version: ${{ steps.set-matrix.outputs.version }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set version matrix
+        id: set-matrix
+        run: |
+          VERSIONS=$(find configs/kiali -maxdepth 1 -name "*.yaml" -print0 | xargs -0 -I {} basename {} .apko.yaml | jq -R -cn '[inputs]')
+          echo "version=$VERSIONS" >> $GITHUB_OUTPUT
+
+  build-images:
+    name: Build Kiali ${{ matrix.version }}
+    runs-on: ubuntu-latest
+    needs: [build-packages, generate-kiali-version]
+    strategy:
+      matrix:
+        version: ${{ fromJSON(needs.generate-kiali-version.outputs.version) }}
+
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download packages
+        uses: actions/download-artifact@v4
+        with:
+          pattern: packages-*
+          merge-multiple: true
+          path: packages
+
+      - name: Build kiali image
+        if: github.event_name == 'pull_request'
+        uses: chainguard-images/actions/apko-build@main
+        with:
+          config: configs/kiali/${{ matrix.version }}.apko.yaml
+          tag: ghcr.io/${{ github.repository_owner }}/kiali:${{ matrix.version }}
+          build-repository-append: ./packages
+          keyring-append: ${{ format('{0}/melange.rsa.pub', github.workspace) }}
+          source-date-epoch: 315532800
+
+      # - name: Upload kiali image artifact tarball
+      #   if: github.event_name == 'pull_request'
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: kiali-${{ matrix.version }}
+      #     path: output.tar
+
+      - name: Determine kiali vmajor.minor
+        if: github.event_name == 'workflow_dispatch'
+        id: major-minor-version
+        run: |
+          echo "major-minor-version=$(echo ${{ matrix.version }} | cut -d '.' -f 1,2)" >> $GITHUB_OUTPUT
+
+      - name: Build and push kiali images
+        if: github.event_name == 'workflow_dispatch'
+        uses: chainguard-images/actions/apko-publish@main
+        with:
+          config: configs/kiali/${{ matrix.version }}.apko.yaml
+          tag: >-
+            ghcr.io/${{ github.repository_owner }}/kiali:${{ steps.major-minor-version.outputs.major-minor-version }}
+            ghcr.io/${{ github.repository_owner }}/kiali:${{ matrix.version }}
+            ghcr.io/${{ github.repository_owner }}/kiali:${{ matrix.version }}-r${{ inputs.epoch }}
+          build-repository-append: ./packages
+          keyring-append: ${{ github.workspace }}/melange.rsa.pub
+          source-date-epoch: 315532800
+          generic-user: ${{ github.repository_owner }}
+          generic-pass: ${{ secrets.GITHUB_TOKEN }}
+          annotations: org.opencontainers.image.source:https://github.com/${{ github.repository_owner }}/${{ github.repository }},org.opencontainers.image.version:${{ matrix.version }}
