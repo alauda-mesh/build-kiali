@@ -104,7 +104,7 @@ pyyaml==6.0.2
     #   ansible-core
     #   ansible-runner
     #   kubernetes
-requests==2.31.0
+requests==2.32.4
     # via
     #   -r ./requirements.in
     #   ansible-runner-http
@@ -132,7 +132,7 @@ six==1.17.0
     #   -r ./requirements.in
     #   kubernetes
     #   python-dateutil
-urllib3==1.26.20
+urllib3==2.5.0
     # via
     #   -r ./requirements.in
     #   kubernetes

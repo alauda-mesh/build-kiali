@@ -3,9 +3,9 @@ name: Build Kiali Operator
 on:
   pull_request:
     paths:
-      - ".github/workflows/build-ansible-operator.yaml"
-      - "ansible-operator/**"
-      - "docker/ansible-operator/**"
+      - ".github/workflows/build-kiali-operator.yaml"
+      - "kiali-operator/**"
+      - "docker/kiali-operator/**"
   workflow_dispatch:
     inputs:
       epoch:
@@ -14,9 +14,13 @@ on:
         type: number
         default: 0
 
+env:
+  OPERATOR_BASE_IMAGE_REPO: ghcr.io/${{ github.repository_owner }}/ansible-operator
+  OPERATOR_BASE_IMAGE_VERSION: v1.38.1
+
 jobs:
-  build-ansible-operator:
-    name: Build ansible-operator image
+  build-kiali-operator:
+    name: Build kiali-operator image
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -41,11 +45,10 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Determine ansible-operator image-version
+      - name: Determine image-version
         id: image-version
         run: |
-          # Search docker/ansible-operator/Dockerfile, the version in pattern "ARG ANSIBLE_OPERATOR_VERSION=..."
-          VERSION=$(cat docker/ansible-operator/Dockerfile | grep "^ARG ANSIBLE_OPERATOR_VERSION=" | cut -d "=" -f 2)
+          VERSION=$(cat kiali-operator/VERSION)
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Determine full image version with epoch suffix
@@ -57,15 +60,18 @@ jobs:
             echo "version=${{ steps.image-version.outputs.version }}" >> $GITHUB_OUTPUT
           fi
 
-      - name: Build and push ansible-operator image
+      - name: Build and push kiali-operator image
         uses: docker/build-push-action@v4
         with:
           platforms: linux/amd64,linux/arm64
-          context: ansible-operator
-          file: docker/ansible-operator/Dockerfile
-          push: true
+          context: kiali-operator
+          file: docker/kiali-operator/Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          build-args: |
+            OPERATOR_BASE_IMAGE_REPO=${{ env.OPERATOR_BASE_IMAGE_REPO }}
+            OPERATOR_BASE_IMAGE_VERSION=${{ env.OPERATOR_BASE_IMAGE_VERSION }}
           tags: |
-            ghcr.io/${{ github.repository_owner }}/ansible-operator:${{ steps.image-version.outputs.version }}
-            ghcr.io/${{ github.repository_owner }}/ansible-operator:${{ steps.full-image-version.outputs.version }}
+            ghcr.io/${{ github.repository_owner }}/kiali-operator:${{ steps.image-version.outputs.version }}
+            ghcr.io/${{ github.repository_owner }}/kiali-operator:${{ steps.full-image-version.outputs.version }}
         env:
           SOURCE_DATE_EPOCH: 315532800

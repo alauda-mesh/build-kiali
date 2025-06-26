@@ -3,9 +3,8 @@
 FROM cgr.dev/chainguard/wolfi-base AS builder
 
 RUN apk update && \
-    apk add build-base curl go-1.23 unzip
+    apk add --no-cache build-base curl go-1.23 unzip
 
-ARG GOPROXY
 ARG ANSIBLE_OPERATOR_VERSION=v1.38.1
 
 RUN curl -sSL https://github.com/operator-framework/ansible-operator-plugins/archive/refs/tags/${ANSIBLE_OPERATOR_VERSION}.tar.gz \
@@ -14,13 +13,14 @@ RUN curl -sSL https://github.com/operator-framework/ansible-operator-plugins/arc
     cd /tmp/ansible-operator-plugins && \
     tar xzf /tmp/ansible-operator-plugins.tar.gz --strip-components=1
 
+ARG GOPROXY
+env GOPROXY=${GOPROXY}
+
 RUN <<EOF
 #!/bin/bash
 set -euo pipefail
 
 cd /tmp/ansible-operator-plugins
-
-export GOPROXY=${GOPROXY}
 
 REPO=github.com/operator-framework/ansible-operator-plugins
 GO_LDFLAGS="-w \
@@ -48,7 +48,7 @@ ENV HOME=/opt/ansible \
     USER_NAME=ansible \
     USER_UID=1001
 
-RUN apk update && apk add tini python-3.12 py3.12-pip py3.12-cryptography
+RUN apk update && apk add --no-cache tini python-3.12 py3.12-pip py3.12-cryptography
 
 ENV REMOTE_SOURCES=${REMOTE_SOURCES:-"./openshift/"}
 ENV REMOTE_SOURCES_DIR=${REMOTE_SOURCES_DIR:-"/cachito"}
