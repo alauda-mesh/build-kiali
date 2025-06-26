@@ -79,17 +79,16 @@ jobs:
 
   build-images:
     name: Build Kiali ${{ matrix.version }}
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux]
     needs: [build-packages, generate-kiali-version]
     strategy:
       matrix:
         version: ${{ fromJSON(needs.generate-kiali-version.outputs.version) }}
 
-    permissions:
-      actions: read
-      contents: read
-      id-token: write
-      packages: write
+    env:
+      http_proxy: ${{ vars.HTTP_PROXY }}
+      https_proxy: ${{ vars.HTTPS_PROXY }}
+      no_proxy: ${{ vars.NO_PROXY }}
 
     steps:
       - name: Checkout repository
@@ -104,39 +103,23 @@ jobs:
 
       - name: Build kiali image
         if: github.event_name == 'pull_request'
-        uses: chainguard-images/actions/apko-build@main
+        uses: ./.github/actions/apko-build
         with:
           config: configs/kiali/${{ matrix.version }}.apko.yaml
           tag: ghcr.io/${{ github.repository_owner }}/kiali:${{ matrix.version }}
           build-repository-append: ./packages
-          keyring-append: ${{ format('{0}/melange.rsa.pub', github.workspace) }}
+          keyring-append: ${{ github.workspace }}/melange.rsa.pub
           source-date-epoch: 315532800
-
-      # - name: Upload kiali image artifact tarball
-      #   if: github.event_name == 'pull_request'
-      #   uses: actions/upload-artifact@v4
-      #   with:
-      #     name: kiali-${{ matrix.version }}
-      #     path: output.tar
-
-      - name: Determine kiali vmajor.minor
-        if: github.event_name == 'workflow_dispatch'
-        id: major-minor-version
-        run: |
-          echo "major-minor-version=$(echo ${{ matrix.version }} | cut -d '.' -f 1,2)" >> $GITHUB_OUTPUT
 
       - name: Build and push kiali images
         if: github.event_name == 'workflow_dispatch'
-        uses: chainguard-images/actions/apko-publish@main
+        uses: ./.github/actions/apko-publish
         with:
           config: configs/kiali/${{ matrix.version }}.apko.yaml
           tag: >-
-            ghcr.io/${{ github.repository_owner }}/kiali:${{ steps.major-minor-version.outputs.major-minor-version }}
-            ghcr.io/${{ github.repository_owner }}/kiali:${{ matrix.version }}
-            ghcr.io/${{ github.repository_owner }}/kiali:${{ matrix.version }}-r${{ inputs.epoch }}
+            build-harbor.alauda.cn/asm/kiali:${{ matrix.version }}-r${{ inputs.epoch }}
           build-repository-append: ./packages
           keyring-append: ${{ github.workspace }}/melange.rsa.pub
           source-date-epoch: 315532800
-          generic-user: ${{ github.repository_owner }}
-          generic-pass: ${{ secrets.GITHUB_TOKEN }}
-          annotations: org.opencontainers.image.source:https://github.com/${{ github.repository_owner }}/${{ github.repository }},org.opencontainers.image.version:${{ matrix.version }}
+          generic-user: ${{ secrets.HARBOR_USERNAME }}
+          generic-pass: ${{ secrets.HARBOR_PASSWORD }}

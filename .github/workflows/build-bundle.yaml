@@ -1,0 +1,30 @@
+name: Build Kiali Operator Bundle
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Bundle version
+        required: true
+
+jobs:
+  build:
+    runs-on: [self-hosted, linux]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Bundle manifests
+        run: |
+          make bundle-manifests
+
+      - name: Build bundle
+        uses: docker/build-push-action@v6
+        with:
+          context: _output/kiali-operator-bundle
+          file: _output/kiali-operator-bundle/bundle.Dockerfile
+          tags: |
+            build-harbor.alauda.cn/asm/kiali-operator-bundle:${{ inputs.version }}
+          push: false
+        env:
+          SOURCE_DATE_EPOCH: 315532800
