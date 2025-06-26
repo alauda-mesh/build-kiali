@@ -1,13 +1,14 @@
+# check=skip=InvalidDefaultArgInFrom
 ARG OPERATOR_BASE_IMAGE_VERSION
 ARG OPERATOR_BASE_IMAGE_REPO
+
 FROM ${OPERATOR_BASE_IMAGE_REPO}:${OPERATOR_BASE_IMAGE_VERSION}
 
-USER root
 RUN apk cache clean
-# pull in jmespath py library for json processing
-RUN python3 -m pip install jmespath
 
 USER ${USER_UID}
+# pull in jmespath py library for json processing
+RUN python3 -m pip install jmespath
 
 COPY roles/ ${HOME}/roles/
 COPY playbooks/ ${HOME}/playbooks/
