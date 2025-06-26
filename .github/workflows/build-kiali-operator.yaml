@@ -41,7 +41,7 @@ jobs:
         id: full-image-version
         run: |
           if [[ -n "${{ inputs.epoch }}" ]]; then
-            echo "version=${{ steps.image-version.outputs.version }}-${{ inputs.epoch }}" >> $GITHUB_OUTPUT
+            echo "version=${{ steps.image-version.outputs.version }}-r${{ inputs.epoch }}" >> $GITHUB_OUTPUT
           else
             echo "version=${{ steps.image-version.outputs.version }}" >> $GITHUB_OUTPUT
           fi
