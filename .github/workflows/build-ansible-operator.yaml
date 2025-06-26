@@ -1,4 +1,4 @@
-name: Build Kiali Operator
+name: Build Ansible Operator
 
 on:
   pull_request:
