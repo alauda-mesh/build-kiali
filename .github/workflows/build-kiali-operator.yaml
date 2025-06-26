@@ -1,0 +1,77 @@
+name: Build Kiali Operator
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/build-kiali-operator.yaml"
+      - "kiali-operator/**"
+      - "docker/kiali-operator/**"
+  workflow_dispatch:
+    inputs:
+      epoch:
+        description: Release epoch
+        required: true
+        type: number
+        default: 0
+
+env:
+  OPERATOR_BASE_IMAGE_REPO: ghcr.io/${{ github.repository_owner }}/ansible-operator
+  OPERATOR_BASE_IMAGE_VERSION: v1.38.1
+
+jobs:
+  build-kiali-operator:
+    name: Build kiali-operator image
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Determine image-version
+        id: image-version
+        run: |
+          VERSION=$(cat kiali-operator/VERSION)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Determine full image version with epoch suffix
+        id: full-image-version
+        run: |
+          if [[ -n "${{ inputs.epoch }}" ]]; then
+            echo "version=${{ steps.image-version.outputs.version }}-${{ inputs.epoch }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=${{ steps.image-version.outputs.version }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build and push kiali-operator image
+        uses: docker/build-push-action@v4
+        with:
+          platforms: linux/amd64,linux/arm64
+          context: kiali-operator
+          file: docker/kiali-operator/Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          build-args: |
+            OPERATOR_BASE_IMAGE_REPO=${{ env.OPERATOR_BASE_IMAGE_REPO }}
+            OPERATOR_BASE_IMAGE_VERSION=${{ env.OPERATOR_BASE_IMAGE_VERSION }}
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/kiali-operator:${{ steps.image-version.outputs.version }}
+            ghcr.io/${{ github.repository_owner }}/kiali-operator:${{ steps.full-image-version.outputs.version }}
+        env:
+          SOURCE_DATE_EPOCH: 315532800
