@@ -1,22 +1,46 @@
 name: Build Kiali Operator Bundle
 
 on:
+  pull_request:
+    paths:
+      - ".github/workflows/build-bundle.yaml"
+      - "kiali-operator-bundle/**"
+      - Makefile
   workflow_dispatch:
     inputs:
       version:
         description: Bundle version
         required: true
+      operator_version:
+        description: Operator version
+        default: "2.0.0-r0"
+        required: true
+      kiali_v2_11_version:
+        description: Kiali v2.11 version
+        default: "v2.11.0-r0"
+        required: true
 
 jobs:
   build:
     runs-on: [self-hosted, linux]
+    env:
+      http_proxy: ${{ vars.http_proxy }}
+      https_proxy: ${{ vars.https_proxy }}
+      no_proxy: ${{ vars.no_proxy }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Bundle manifests
+        id: bundle
         run: |
-          make bundle-manifests
+          # Only in pull_request
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            export KIALI_OPERATOR_BUNDLE_VERSION=${{ inputs.version }}
+            export KIALI_OPERATOR_VERSION=${{ inputs.operator_version }}
+            export KIALI_2_11_VERSION=${{ inputs.kiali_v2_11_version }}
+          fi
+          make -e bundle-manifests
 
       - name: Build bundle
         uses: docker/build-push-action@v6
@@ -24,7 +48,8 @@ jobs:
           context: _output/kiali-operator-bundle
           file: _output/kiali-operator-bundle/bundle.Dockerfile
           tags: |
-            build-harbor.alauda.cn/asm/kiali-operator-bundle:${{ inputs.version }}
-          push: false
+            build-harbor.alauda.cn/asm/kiali-operator-bundle:${{ env.KIALI_OPERATOR_BUNDLE_VERSION }}
+          push: ${{ github.event_name != 'pull_request' }}
         env:
+          KIALI_OPERATOR_BUNDLE_VERSION: ${{ github.event_name == 'pull_request' && 'latest' || inputs.version }}
           SOURCE_DATE_EPOCH: 315532800

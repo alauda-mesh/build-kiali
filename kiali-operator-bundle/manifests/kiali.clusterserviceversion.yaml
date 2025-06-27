@@ -1,7 +1,7 @@
 apiVersion: operators.coreos.com/v1alpha1
 kind: ClusterServiceVersion
 metadata:
-  name: kiali-operator.v${KIALI_OPERATOR_VERSION}
+  name: kiali-operator.v${KIALI_OPERATOR_BUNDLE_VERSION}
   namespace: placeholder
   labels:
     operatorframework.io/arch.amd64: supported
@@ -40,7 +40,7 @@ metadata:
         }
       ]
 spec:
-  version: ${KIALI_OPERATOR_VERSION}
+  version: ${KIALI_OPERATOR_BUNDLE_VERSION}
   maturity: stable
   displayName: Alaua Build of Kiali Operator
   description: |-
