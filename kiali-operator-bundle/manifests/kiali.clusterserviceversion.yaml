@@ -42,7 +42,7 @@ metadata:
 spec:
   version: ${KIALI_OPERATOR_BUNDLE_VERSION}
   maturity: stable
-  displayName: Alaua Build of Kiali
+  displayName: Alauda Build of Kiali
   description: |-
     ## About the managed application
 
