@@ -191,6 +191,5 @@ runs:
         ${{ inputs.debug && '--log-level debug' }} \
         --image-refs="${{ inputs.image_refs }}" ${{ inputs.config }} ${{ inputs.tag }} $keys $build_repos $repos $packages $archs $annotations $build_options $sbomPath | tee ${DIGEST_FILE}
       echo EXIT CODE: $?
-      EOF
 
       echo "digest=$(cat /tmp/digest)" >> $GITHUB_OUTPUT

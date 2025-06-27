@@ -109,7 +109,7 @@ jobs:
         run: |
           FULL_VERSION=${{ needs.determine-version.outputs.full-version }}
 
-          for TAG in ${TARGET_TAGS}; do
+          for TAG in ${TAGS}; do
             crane index append \
               -m "${IMAGE_NAME}:${FULL_VERSION}-amd64" \
               -m "${IMAGE_NAME}:${FULL_VERSION}-arm64" \
