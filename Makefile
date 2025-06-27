@@ -35,7 +35,7 @@ endif
 
 .PHONY: .download-operator-sdk-if-needed
 .download-operator-sdk-if-needed:
-	if [ "$(shell which operator-sdk 2>/dev/null || echo -n "")" == "" ]; then \
+	@if [ "$(shell which operator-sdk 2>/dev/null || echo -n "")" == "" ]; then \
 		mkdir -p "$(OUTDIR)/operator-sdk-install" ;\
 		if [ -x "$(OUTDIR)/operator-sdk-install/operator-sdk" ]; then \
 		echo "You do not have operator-sdk installed in your PATH. Will use the one found here: $(OUTDIR)/operator-sdk-install/operator-sdk" ;\
