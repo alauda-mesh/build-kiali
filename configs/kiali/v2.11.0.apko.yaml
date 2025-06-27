@@ -21,6 +21,24 @@ archs:
   - x86_64
   - aarch64
 
+accounts:
+  groups:
+    - groupname: kiali
+      gid: 1000
+  users:
+    - username: kiali
+      uid: 1000
+      gid: 1000
+      shell: /sbin/nologin
+  run-as: kiali
+
+paths:
+  - path: /opt/kiali/kiali
+    type: permissions
+    uid: 1000
+    gid: 1000
+    permissions: 0o755
+
 environment:
   KIALI_HOME: /opt/kiali
   PATH: /opt/kiali:/usr/local/sbin:/usr/local/bin:/usr/bin:/usr/sbin:/sbin:/bin
