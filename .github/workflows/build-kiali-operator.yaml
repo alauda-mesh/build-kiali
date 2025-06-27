@@ -48,28 +48,31 @@ jobs:
 
   build-kiali-operator:
     name: Build kiali-operator image
-    runs-on: ${{ matrix.platform == 'linux/arm64' && 'ubuntu-22.04-arm' || 'ubuntu-latest' }}
+    runs-on: [self-hosted, linux, "${{ matrix.platform == 'linux/arm64' && 'arm64' || 'x64' }}"]
     needs: [determine-version]
-    permissions:
-      actions: read
-      contents: read
-      id-token: write
-      packages: write
 
     strategy:
       matrix:
         platform: [linux/amd64, linux/arm64]
 
+    env:
+      http_proxy: ${{ vars.http_proxy }}
+      https_proxy: ${{ vars.https_proxy }}
+      no_proxy: ${{ vars.no_proxy }}
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Log in to GitHub Container Registry
+      # - name: Install gh cli
+      #   uses: dev-hanz-ops/install-gh-cli-action@v0.2.1
+
+      - name: Login to build-harbor.alauda.cn
         uses: docker/login-action@v3
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          registry: build-harbor.alauda.cn
+          username: ${{ secrets.HARBOR_USERNAME }}
+          password: ${{ secrets.HARBOR_PASSWORD }}
 
       - name: Determine platform tag
         id: platform-tag
@@ -88,14 +91,20 @@ jobs:
             OPERATOR_BASE_IMAGE_REPO=${{ env.OPERATOR_BASE_IMAGE_REPO }}
             OPERATOR_BASE_IMAGE_VERSION=${{ env.OPERATOR_BASE_IMAGE_VERSION }}
           tags: |
-            ghcr.io/${{ github.repository_owner }}/kiali-operator:${{ steps.platform-tag.outputs.tag }}
+            ${{ env.IMAGE_NAME }}:${{ steps.platform-tag.outputs.tag }}
         env:
+          IMAGE_NAME: build-harbor.alauda.cn/asm/kiali-operator
           SOURCE_DATE_EPOCH: 315532800
 
   merge-kiali-operator-manifests:
     name: Merge kiali-operator image manifests
     if: github.event_name != 'pull_request'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux]
+
+    env:
+      http_proxy: ${{ vars.http_proxy }}
+      https_proxy: ${{ vars.https_proxy }}
+      no_proxy: ${{ vars.no_proxy }}
 
     needs: [determine-version, build-kiali-operator]
     steps:
@@ -109,11 +118,10 @@ jobs:
 
       - name: Merge manifests and push to image registry
         env:
-          IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/kiali-operator
-          TAGS: ${{ needs.determine-version.outputs.version }} ${{ needs.determine-version.outputs.full-version }}
+          IMAGE_NAME: build-harbor.alauda.cn/asm/kiali-operator
+          TAGS: ${{ needs.determine-version.outputs.full-version }}
+          FULL_VERSION: ${{ needs.determine-version.outputs.full-version }}
         run: |
-          FULL_VERSION=${{ needs.determine-version.outputs.full-version }}
-
           for TAG in ${TARGET_TAGS}; do
             crane index append \
               -m "${IMAGE_NAME}:${FULL_VERSION}-amd64" \

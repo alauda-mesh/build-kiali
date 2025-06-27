@@ -7,11 +7,15 @@ metadata:
     operatorframework.io/arch.amd64: supported
     operatorframework.io/arch.arm64: supported
   annotations:
+    provider: '{"zh":"平台", "en": "platform"}'
+    provider-type: platform
+    support: Aluada
+    operatorframework.io/suggested-namespace: kiali-operator
+
     categories: Monitoring,Logging & Tracing
     certified: "false"
     containerImage: ${KIALI_OPERATOR_REGISTRY}
     capabilities: Deep Insights
-    support: Aluada
     description: "Kiali project provides answers to the questions: What microservices are part of my Istio service mesh and how are they connected?"
     repository: https://github.com/kiali/kiali
     createdAt: ${CREATED_AT}
@@ -31,20 +35,6 @@ metadata:
                 "log_level": "info"
               },
               "view_only_mode": false
-            }
-          }
-        },
-        {
-          "apiVersion": "kiali.io/v1alpha1",
-          "kind": "OSSMConsole",
-          "metadata": {
-            "name": "ossmconsole"
-          },
-          "spec": {
-            "version": "default",
-            "kiali": {
-              "serviceName": "",
-              "serviceNamespace": ""
             }
           }
         }
@@ -170,16 +160,12 @@ spec:
         - 'urn:alm:descriptor:com.tectonic.ui:booleanSwitch'
   apiservicedefinitions: {}
   relatedImages:
+  - name: kiali_operator
+    image: "${KIALI_OPERATOR_REGISTRY}"
   - name: kiali_default
     image: "${KIALI_2_11}"
   - name: kiali_v2_11
     image: "${KIALI_2_11}"
-  - name: kiali_v2_4
-    image: "${KIALI_2_4}"
-  - name: kiali_v1_73
-    image: "${KIALI_1_73}"
-  - name: kiali_v1_65
-    image: "${KIALI_1_65}"
   install:
     strategy: deployment
     spec:
@@ -293,12 +279,6 @@ spec:
                   value: "${KIALI_2_11}"
                 - name: RELATED_IMAGE_kiali_v2_11
                   value: "${KIALI_2_11}"
-                - name: RELATED_IMAGE_kiali_v2_4
-                  value: "${KIALI_2_4}"
-                - name: RELATED_IMAGE_kiali_v1_73
-                  value: "${KIALI_1_73}"
-                - name: RELATED_IMAGE_kiali_v1_65
-                  value: "${KIALI_1_65}"
                 ports:
                 - name: http-metrics
                   containerPort: 8080

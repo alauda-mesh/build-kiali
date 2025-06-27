@@ -6,7 +6,8 @@
 
 ## kiali-operator
 
-同步 `github.com/kiali/kiali-operator`：
+同步 `github.com/kiali/kiali-operator`，修改 kiali-operator-bundle/manifests 下的 CSV，并且
 
 1. 移除 `roles/` 下不需要的版本
-2. 修改 `playbooks/kiali-default-supported-images.yml`, 移除不需要的版本、修改镜像名称和版本
+2. 移除 `kiali-default-supported-images.yml` 下不需要的版本
+3. 修改 Makefile 中的 CREATED_AT
