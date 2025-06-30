@@ -8,15 +8,16 @@ on:
       - Makefile
   workflow_dispatch:
     inputs:
-      version:
-        description: Bundle version
+      tag:
+        description: Bundle tag
+        default: "v2.11.0-r0"
         required: true
-      operator_version:
-        description: Operator version
-        default: "2.11.0-r0"
+      operator_tag:
+        description: Operator tag
+        default: "v2.11.0-r0"
         required: true
-      kiali_v2_11_version:
-        description: Kiali v2.11 version
+      kiali_v2_11_tag:
+        description: Kiali v2.11 image tag
         default: "v2.11.0-r0"
         required: true
 
@@ -38,15 +39,26 @@ jobs:
           username: ${{ secrets.HARBOR_USERNAME }}
           password: ${{ secrets.HARBOR_PASSWORD }}
 
+      - name: Determine image version
+        id: version
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            BUNDLE_TAG=${{ inputs.tag }}
+            OPERATOR_TAG=${{ inputs.operator_tag }}
+
+            echo "KIALI_OPERATOR_BUNDLE_VERSION=${BUNDLE_TAG#v}" >> $GITHUB_ENV
+            echo "KIALI_OPERATOR_VERSION=${OPERATOR_TAG#v}" >> $GITHUB_ENV
+            echo "KIALI_2_11_VERSION=${{ inputs.kiali_v2_11_tag }}" >> $GITHUB_ENV
+          else
+            BUNDLE_VERSION=$(make print-variables | grep 'KIALI_OPERATOR_BUNDLE_VERSION =' | cut -d '=' -f 2 | tr -d ' ')
+            BUNDLE_TAG="v${BUNDLE_VERSION}-pr.${{ github.event.pull_request.number }}.${{ github.run_number }}"
+          fi
+          echo "tag=$BUNDLE_TAG" >> $GITHUB_OUTPUT
+
       - name: Bundle manifests
         id: bundle
         run: |
-          # Only in pull_request
-          if [ "${{ github.event_name }}" != "pull_request" ]; then
-            export KIALI_OPERATOR_BUNDLE_VERSION=${{ inputs.version }}
-            export KIALI_OPERATOR_VERSION=${{ inputs.operator_version }}
-            export KIALI_2_11_VERSION=${{ inputs.kiali_v2_11_version }}
-          fi
           make -e bundle-manifests
 
       - name: Build bundle
@@ -55,8 +67,7 @@ jobs:
           context: _output/kiali-operator-bundle
           file: _output/kiali-operator-bundle/bundle.Dockerfile
           tags: |
-            build-harbor.alauda.cn/asm/kiali-operator-bundle:${{ env.KIALI_OPERATOR_BUNDLE_VERSION }}
-          push: ${{ github.event_name != 'pull_request' }}
+            build-harbor.alauda.cn/asm/kiali-operator-bundle:${{ steps.version.outputs.tag }}
+          push: true
         env:
-          KIALI_OPERATOR_BUNDLE_VERSION: ${{ github.event_name == 'pull_request' && 'latest' || inputs.version }}
           SOURCE_DATE_EPOCH: 315532800

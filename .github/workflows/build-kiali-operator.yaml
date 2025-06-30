@@ -24,8 +24,7 @@ jobs:
     runs-on: ubuntu-latest
 
     outputs:
-      version: ${{ steps.image-version.outputs.version }}
-      full-version: ${{ steps.full-image-version.outputs.version }}
+      tag: ${{ steps.image-version.outputs.tag }}
 
     steps:
       - name: Checkout repository
@@ -34,17 +33,13 @@ jobs:
       - name: Determine image version
         id: image-version
         run: |
-          VERSION=$(cat kiali-operator/VERSION)
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-
-      - name: Determine full image version with epoch suffix
-        id: full-image-version
-        run: |
+          TAG="v$(cat kiali-operator/VERSION)"
           if [[ -n "${{ inputs.epoch }}" ]]; then
-            echo "version=${{ steps.image-version.outputs.version }}-r${{ inputs.epoch }}" >> $GITHUB_OUTPUT
-          else
-            echo "version=${{ steps.image-version.outputs.version }}" >> $GITHUB_OUTPUT
+            TAG="${TAG}-r${{ inputs.epoch }}"
+          elif [[ -n "${{ github.event.pull_request.number }}" ]]; then
+            TAG="${TAG}-pr.${{ github.event.pull_request.number }}.${{ github.run_number }}"
           fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
 
   build-kiali-operator:
     name: Build kiali-operator image
@@ -64,9 +59,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # - name: Install gh cli
-      #   uses: dev-hanz-ops/install-gh-cli-action@v0.2.1
-
       - name: Login to ghcr.io
         uses: docker/login-action@v3
         with:
@@ -85,7 +77,7 @@ jobs:
         id: platform-tag
         run: |
           ARCH=$(echo "${{ matrix.platform }}" | sed 's/linux\///g')
-          echo "tag=${{ needs.determine-version.outputs.full-version }}-${ARCH}" >> $GITHUB_OUTPUT
+          echo "tag=${{ needs.determine-version.outputs.tag }}-${ARCH}" >> $GITHUB_OUTPUT
 
       - name: Build and push kiali-operator image
         uses: docker/build-push-action@v6
@@ -93,7 +85,7 @@ jobs:
           platforms: ${{ matrix.platform}}
           context: kiali-operator
           file: docker/kiali-operator/Dockerfile
-          push: ${{ github.event_name != 'pull_request' }}
+          push: true
           build-args: |
             OPERATOR_BASE_IMAGE_REPO=${{ env.OPERATOR_BASE_IMAGE_REPO }}
             OPERATOR_BASE_IMAGE_VERSION=${{ env.OPERATOR_BASE_IMAGE_VERSION }}
@@ -105,7 +97,6 @@ jobs:
 
   merge-kiali-operator-manifests:
     name: Merge kiali-operator image manifests
-    if: github.event_name != 'pull_request'
     runs-on: [self-hosted, linux]
 
     env:
@@ -123,15 +114,22 @@ jobs:
         with:
           version: latest-release
 
+      - name: Login to build-harbor.alauda.cn
+        uses: docker/login-action@v3
+        with:
+          registry: build-harbor.alauda.cn
+          username: ${{ secrets.HARBOR_USERNAME }}
+          password: ${{ secrets.HARBOR_PASSWORD }}
+
       - name: Merge manifests and push to image registry
         env:
           IMAGE_NAME: build-harbor.alauda.cn/asm/kiali-operator
-          TAGS: ${{ needs.determine-version.outputs.full-version }}
-          FULL_VERSION: ${{ needs.determine-version.outputs.full-version }}
+          TAG_PREFIX: ${{ needs.determine-version.outputs.tag }}
+          TAGS: ${{ needs.determine-version.outputs.tag }}
         run: |
           for TAG in ${TAGS}; do
             crane index append \
-              -m "${IMAGE_NAME}:${FULL_VERSION}-amd64" \
-              -m "${IMAGE_NAME}:${FULL_VERSION}-arm64" \
+              -m "${IMAGE_NAME}:${TAG_PREFIX}-amd64" \
+              -m "${IMAGE_NAME}:${TAG_PREFIX}-arm64" \
               -t "${IMAGE_NAME}:${TAG}"
           done
