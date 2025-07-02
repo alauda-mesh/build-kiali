@@ -33,7 +33,7 @@ jobs:
       - name: Determine image version
         id: image-version
         run: |
-          TAG="v$(cat kiali-operator/VERSION)"
+          TAG="$(cat kiali-operator/VERSION)"
           if [[ -n "${{ inputs.epoch }}" ]]; then
             TAG="${TAG}-r${{ inputs.epoch }}"
           elif [[ -n "${{ github.event.pull_request.number }}" ]]; then
