@@ -64,3 +64,10 @@ bundle-manifests: .ensure-operator-sdk-exists
 		KIALI_2_11=$(KIALI_2_11) \
 		envsubst < kiali-operator-bundle/manifests/kiali.clusterserviceversion.yaml | tee $(OUTDIR)/kiali-operator-bundle/manifests/kiali.clusterserviceversion.yaml
 	$(OP_SDK) bundle validate $(OUTDIR)/kiali-operator-bundle
+
+.PHONY: print-variables
+print-variables: ## Print all Makefile variables; Useful to inspect overrides of variables.
+	$(foreach v,                                        \
+        $(filter-out $(OLD_VARS) OLD_VARS,$(.VARIABLES)), \
+        $(info $(v) = $($(v))))
+	@echo
