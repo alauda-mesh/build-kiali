@@ -35,8 +35,40 @@ go build -o /usr/local/bin/ansible-operator \
     ./cmd/ansible-operator
 EOF
 
+FROM cgr.dev/chainguard/wolfi-base AS baselayout
+
+# Just make some ridiculous scanners happy
+COPY <<'EOF' /etc/passwd
+root:x:0:0:root:/root:/bin/ash
+bin:x:1:1:bin:/bin:/sbin/nologin
+daemon:x:2:2:daemon:/sbin:/sbin/nologin
+adm:x:3:4:adm:/var/adm:/sbin/nologin
+lp:x:4:7:lp:/var/spool/lpd:/sbin/nologin
+mail:x:8:12:mail:/var/mail:/sbin/nologin
+news:x:9:13:news:/usr/lib/news:/sbin/nologin
+uucp:x:10:14:uucp:/var/spool/uucppublic:/sbin/nologin
+man:x:13:15:man:/usr/man:/sbin/nologin
+postmaster:x:14:12:postmaster:/var/mail:/sbin/nologin
+cron:x:16:16:cron:/var/spool/cron:/sbin/nologin
+ftp:x:21:21::/var/lib/ftp:/sbin/nologin
+sshd:x:22:22:sshd:/dev/null:/sbin/nologin
+nobody:x:65534:65534:nobody:/:/sbin/nologin
+EOF
+
+# Set a '*' for the root password to make scanners happy
+RUN <<'EOF'
+awk -F: '{
+    pw = ":!:"
+    if ($1 == "root") { pw = ":*:" }
+    print($1 pw ":0:::::")
+}' /etc/passwd > /etc/shadow
+EOF
+
 
 FROM cgr.dev/chainguard/wolfi-base
+
+COPY --from=baselayout --link /etc/passwd /etc/passwd
+COPY --from=baselayout --link /etc/shadow /etc/shadow
 
 RUN mkdir -p /etc/ansible \
     && echo "localhost ansible_connection=local" > /etc/ansible/hosts \
