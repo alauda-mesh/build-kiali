@@ -16,7 +16,7 @@ on:
 
 env:
   OPERATOR_BASE_IMAGE_REPO: ghcr.io/${{ github.repository_owner }}/ansible-operator
-  OPERATOR_BASE_IMAGE_VERSION: v1.38.1
+  OPERATOR_BASE_IMAGE_VERSION: v1.38.1-r1
 
 jobs:
   determine-version:
