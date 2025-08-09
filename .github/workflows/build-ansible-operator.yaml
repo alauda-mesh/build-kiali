@@ -92,6 +92,12 @@ jobs:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
 
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      packages: write
+
     needs: [determine-version, build-ansible-operator]
     steps:
       - name: Checkout repository
