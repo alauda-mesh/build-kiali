@@ -15,7 +15,7 @@ on:
         default: 0
 
 env:
-  OPERATOR_BASE_IMAGE_REPO: ghcr.io/${{ github.repository_owner }}/ansible-operator
+  OPERATOR_BASE_IMAGE_REPO: build-harbor.alauda.cn/asm/ansible-operator
   OPERATOR_BASE_IMAGE_VERSION: v1.38.1-r1
 
 jobs:
