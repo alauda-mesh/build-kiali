@@ -16,7 +16,7 @@ on:
 
 env:
   OPERATOR_BASE_IMAGE_REPO: build-harbor.alauda.cn/asm/ansible-operator
-  OPERATOR_BASE_IMAGE_VERSION: v1.38.1-r1
+  OPERATOR_BASE_IMAGE_VERSION: v1.38.1-r2
 
 jobs:
   determine-version:
@@ -58,13 +58,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Login to ghcr.io
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Login to build-harbor.alauda.cn
         uses: docker/login-action@v3
