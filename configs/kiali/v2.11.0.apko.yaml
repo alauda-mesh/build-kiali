@@ -10,7 +10,7 @@ contents:
     - alauda-baselayout
     - ca-certificates-bundle
     - tzdata
-    - kiali=2.11.0@local
+    - kiali=2.11.0-r1@local
 
 entrypoint:
   command: /opt/kiali/kiali
