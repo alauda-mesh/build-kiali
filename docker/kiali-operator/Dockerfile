@@ -4,8 +4,6 @@ ARG OPERATOR_BASE_IMAGE_REPO
 
 FROM ${OPERATOR_BASE_IMAGE_REPO}:${OPERATOR_BASE_IMAGE_VERSION}
 
-RUN apk cache clean
-
 USER ${USER_UID}
 # pull in jmespath py library for json processing
 RUN python3 -m pip install jmespath
