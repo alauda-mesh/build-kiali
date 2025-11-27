@@ -42,7 +42,7 @@ jobs:
       - name: Setup melange tool
         uses: chainguard-dev/actions/setup-melange@main
         with:
-          version: v0.26.13
+          version: v0.34.0
 
       - name: Build kiali packages
         uses: ./.github/actions/melange-build-pkg
