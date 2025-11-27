@@ -10,11 +10,15 @@ on:
     inputs:
       tag:
         description: Bundle tag
-        default: "v2.11.0-r0"
+        default: "v2.17.1-r0"
         required: true
       operator_tag:
         description: Operator tag
-        default: "v2.11.0-r0"
+        default: "v2.17.1-r0"
+        required: true
+      kiali_v2_17_tag:
+        description: Kiali v2.17 image tag
+        default: "v2.17.0-r0"
         required: true
       kiali_v2_11_tag:
         description: Kiali v2.11 image tag
@@ -50,6 +54,7 @@ jobs:
             echo "KIALI_OPERATOR_BUNDLE_VERSION=${BUNDLE_TAG#v}" >> $GITHUB_ENV
             echo "KIALI_OPERATOR_VERSION=${OPERATOR_TAG#v}" >> $GITHUB_ENV
             echo "KIALI_2_11_VERSION=${{ inputs.kiali_v2_11_tag }}" >> $GITHUB_ENV
+            echo "KIALI_2_17_VERSION=${{ inputs.kiali_v2_17_tag }}" >> $GITHUB_ENV
           else
             BUNDLE_VERSION=$(make print-variables | grep 'KIALI_OPERATOR_BUNDLE_VERSION =' | cut -d '=' -f 2 | tr -d ' ')
             BUNDLE_TAG="v${BUNDLE_VERSION}-pr.${{ github.event.pull_request.number }}.${{ github.run_number }}"

@@ -1,0 +1,44 @@
+contents:
+  repositories:
+    - https://packages.wolfi.dev/os
+    - https://alauda-mesh.github.io/istio-base-images
+  keyring:
+    - https://packages.wolfi.dev/os/wolfi-signing.rsa.pub
+    - https://alauda-mesh.github.io/istio-base-images/melange.rsa.pub
+  packages:
+    - wolfi-baselayout
+    - alauda-baselayout
+    - ca-certificates-bundle
+    - tzdata
+    - kiali=2.17.1-r0@local
+
+entrypoint:
+  command: /opt/kiali/kiali
+
+work-dir: /opt/kiali
+
+archs:
+  - x86_64
+  - aarch64
+
+accounts:
+  groups:
+    - groupname: kiali
+      gid: 1000
+  users:
+    - username: kiali
+      uid: 1000
+      gid: 1000
+      shell: /sbin/nologin
+  run-as: kiali
+
+paths:
+  - path: /opt/kiali/kiali
+    type: permissions
+    uid: 1000
+    gid: 1000
+    permissions: 0o755
+
+environment:
+  KIALI_HOME: /opt/kiali
+  PATH: /opt/kiali:/usr/local/sbin:/usr/local/bin:/usr/bin:/usr/sbin:/sbin:/bin

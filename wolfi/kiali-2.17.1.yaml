@@ -1,0 +1,61 @@
+package:
+  name: kiali-2.17
+  version: "2.17.1"
+  epoch: 0
+  description: The Console for Istio Service Mesh
+  copyright:
+    - license: Apache-2.0
+  dependencies:
+    runtime:
+      - ca-certificates
+    provides:
+      - kiali=${{package.full-version}}
+
+environment:
+  contents:
+    packages:
+      - automake
+      - busybox
+      - ca-certificates-bundle
+      - go
+      - nodejs
+      - npm
+      - tree
+      - yarn
+
+pipeline:
+  - uses: git-checkout
+    with:
+      repository: https://github.com/kiali/kiali
+      tag: v${{package.version}}
+      expected-commit: 0c485691ce81338523f24f8f0b67b2749d4987aa
+
+  - runs: make clean-all build-ui
+
+  - uses: go/build # Builds to /opt/kiali/kiali
+    with:
+      packages: .
+      prefix: opt
+      install-dir: kiali
+      output: kiali
+      ldflags: |
+        -X runtime.buildVersion=unknown \
+        -X runtime.modinfo= \
+        -X main.version=v${{package.version}} \
+        -X main.commitHash=$(git rev-parse HEAD) \
+        -X main.goVersion=unknown
+
+  - uses: strip
+
+test:
+  pipeline:
+    - name: Verify Kiali API
+      runs: |
+        # Check if binary runs
+        /opt/kiali/kiali --help
+
+update:
+  enabled: true
+  github:
+    identifier: kiali/kiali
+    strip-prefix: v
