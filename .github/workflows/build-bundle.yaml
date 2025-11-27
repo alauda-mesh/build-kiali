@@ -18,7 +18,7 @@ on:
         required: true
       kiali_v2_17_tag:
         description: Kiali v2.17 image tag
-        default: "v2.17.0-r0"
+        default: "v2.17.1-r0"
         required: true
       kiali_v2_11_tag:
         description: Kiali v2.11 image tag
