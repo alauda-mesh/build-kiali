@@ -51,6 +51,7 @@ jobs:
           archs: ${{ matrix.arch }}
           sign-with-key: true
           signing-key-path: /tmp/melange.rsa
+          keyring-path: ${{ github.workspace }}/melange.rsa.pub
           repository-append: https://packages.wolfi.dev/os
           keyring-append: https://packages.wolfi.dev/os/wolfi-signing.rsa.pub
           workdir: ./wolfi

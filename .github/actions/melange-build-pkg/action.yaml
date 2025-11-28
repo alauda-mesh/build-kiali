@@ -33,6 +33,11 @@ inputs:
       The path for the temporary key if signing is enabled.
     default: ${{ github.workspace }}/melange.rsa
 
+  keyring-path:
+    description: |
+      The path for the temporary key.
+    default: ${{ github.workspace }}/melange.rsa.pub
+
   repository-path:
     description: |
       The path of the repository being constructed by Melange.
@@ -133,7 +138,7 @@ runs:
           # add this as an additional local repository that other packages can depend on
           if [[ -d "${{ inputs.repository-path }}" ]]; then
             repoarg="${repoarg} --repository-append ${{ inputs.repository-path }}"
-            keyringarg="${keyringarg} --keyring-append ${{ inputs.signing-key-path }}.pub"
+            keyringarg="${keyringarg} --keyring-append ${{ inputs.keyring-path }}"
           fi
           sudo melange build $config \
             --arch ${{ inputs.archs }} \
