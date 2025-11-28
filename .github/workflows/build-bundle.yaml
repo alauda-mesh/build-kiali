@@ -14,7 +14,7 @@ on:
         required: true
       operator_tag:
         description: Operator tag
-        default: "v2.17.1-r0"
+        default: "2.17.1-r0"
         required: true
       kiali_v2_17_tag:
         description: Kiali v2.17 image tag
