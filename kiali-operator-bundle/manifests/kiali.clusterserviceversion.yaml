@@ -163,7 +163,9 @@ spec:
   - name: kiali_operator
     image: "${KIALI_OPERATOR_REGISTRY}"
   - name: kiali_default
-    image: "${KIALI_2_11}"
+    image: "${KIALI_2_17}"
+  - name: kiali_v2_17
+    image: "${KIALI_2_17}"
   - name: kiali_v2_11
     image: "${KIALI_2_11}"
   install:
@@ -272,7 +274,9 @@ spec:
                 - name: WATCHES_FILE
                   value: "watches-k8s.yaml"
                 - name: RELATED_IMAGE_kiali_default
-                  value: "${KIALI_2_11}"
+                  value: "${KIALI_2_17}"
+                - name: RELATED_IMAGE_kiali_v2_17
+                  value: "${KIALI_2_17}"
                 - name: RELATED_IMAGE_kiali_v2_11
                   value: "${KIALI_2_11}"
                 ports:
@@ -423,6 +427,7 @@ spec:
         - apiGroups: ["extensions", "networking.k8s.io"]
           resources:
           - ingresses
+          - networkpolicies
           verbs:
           - create
           - delete
@@ -555,6 +560,7 @@ spec:
           - extensions.istio.io
           - telemetry.istio.io
           - gateway.networking.k8s.io
+          - inference.networking.k8s.io
           resources: ["*"]
           verbs:
           - get

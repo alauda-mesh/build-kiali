@@ -17,7 +17,7 @@ on:
 jobs:
   build-packages:
     name: Build kiali packages (${{ matrix.arch }})
-    runs-on: ${{ matrix.arch == 'aarch64' && 'ubuntu-22.04-arm' || 'ubuntu-latest' }}
+    runs-on: ${{ matrix.arch == 'aarch64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
     strategy:
       matrix:
         arch: [x86_64, aarch64]
@@ -42,7 +42,7 @@ jobs:
       - name: Setup melange tool
         uses: chainguard-dev/actions/setup-melange@main
         with:
-          version: v0.26.13
+          version: v0.34.0
 
       - name: Build kiali packages
         uses: ./.github/actions/melange-build-pkg
@@ -51,6 +51,7 @@ jobs:
           archs: ${{ matrix.arch }}
           sign-with-key: true
           signing-key-path: /tmp/melange.rsa
+          keyring-path: ${{ github.workspace }}/melange.rsa.pub
           repository-append: https://packages.wolfi.dev/os
           keyring-append: https://packages.wolfi.dev/os/wolfi-signing.rsa.pub
           workdir: ./wolfi
