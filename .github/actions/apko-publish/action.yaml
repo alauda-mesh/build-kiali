@@ -10,7 +10,7 @@ inputs:
   apko-version:
     description: |
       The version of apko to be used
-    default: v0.27.9
+    default: v0.30.26
     required: true
 
   config:
