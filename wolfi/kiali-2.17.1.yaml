@@ -41,9 +41,9 @@ pipeline:
       ldflags: |
         -X runtime.buildVersion=unknown \
         -X runtime.modinfo= \
-        -X main.version=v${{package.version}} \
-        -X main.commitHash=$(git rev-parse HEAD) \
-        -X main.goVersion=unknown
+        -X github.com/kiali/kiali/cmd.version=v${{package.version}} \
+        -X github.com/kiali/kiali/cmd.commitHash=$(git rev-parse HEAD) \
+        -X github.com/kiali/kiali/cmd.goVersion=unknown
 
   - uses: strip
 
