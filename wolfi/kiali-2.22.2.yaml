@@ -21,7 +21,6 @@ environment:
       - nodejs
       - npm
       - tree
-      - yarn
 
 pipeline:
   - uses: git-checkout
@@ -30,7 +29,10 @@ pipeline:
       tag: v${{package.version}}
       expected-commit: 7769925d203b808819854a91722256291596b802
 
-  - runs: make clean-all build-ui
+  - runs: |
+      # v2.22.2 前端通过 corepack 管理 Yarn 4，不能复用系统自带的 Yarn 1.x。
+      corepack enable
+      make clean-all build-ui
 
   - uses: go/build # Builds to /opt/kiali/kiali
     with:
