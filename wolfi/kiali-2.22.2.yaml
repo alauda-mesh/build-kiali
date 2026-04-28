@@ -28,7 +28,7 @@ pipeline:
     with:
       repository: https://github.com/kiali/kiali
       tag: v${{package.version}}
-      expected-commit: 0c485691ce81338523f24f8f0b67b2749d4987aa
+      expected-commit: 7769925d203b808819854a91722256291596b802
 
   - runs: make clean-all build-ui
 
