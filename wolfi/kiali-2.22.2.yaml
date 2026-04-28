@@ -17,6 +17,7 @@ environment:
       - automake
       - busybox
       - ca-certificates-bundle
+      - corepack
       - go
       - nodejs
       - npm
