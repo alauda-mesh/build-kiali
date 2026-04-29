@@ -8,8 +8,11 @@ run-name: >-
       inputs.epoch_v2_17 != '' && format('r{0}', inputs.epoch_v2_17) || 'skip',
       inputs.epoch_v2_22 != '' && format('r{0}', inputs.epoch_v2_22) || 'skip'
     )
-    || 'Build Kiali Images (v2.11.0, v2.17.1, v2.22.2)'
+    || format('{0} (Build Kiali v2.11.0, v2.17.1, v2.22.2)', github.event.pull_request.title)
   }}
+
+env:
+  GOPROXY: "https://goproxy.cn,direct"
 
 on:
   pull_request:

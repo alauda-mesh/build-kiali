@@ -10,7 +10,7 @@ run-name: >-
       inputs.kiali_v2_17_tag,
       inputs.kiali_v2_11_tag
     )
-    || format('Build Kiali Operator Bundle ({0}-pr.{1}.{2})', 'v2.22.2', github.event.pull_request.number, github.run_number)
+    || format('{0} (Build Bundle {1}-pr.{2}.{3})', github.event.pull_request.title, 'v2.22.2', github.event.pull_request.number, github.run_number)
   }}
 
 on:
