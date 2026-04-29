@@ -1,4 +1,17 @@
 name: Build Kiali Operator Bundle
+run-name: >-
+  ${{
+    github.event_name == 'workflow_dispatch'
+    && format(
+      'Build Kiali Operator Bundle (tag={0}, operator_tag={1}, kiali_v2_22_tag={2}, kiali_v2_17_tag={3}, kiali_v2_11_tag={4})',
+      inputs.tag,
+      inputs.operator_tag,
+      inputs.kiali_v2_22_tag,
+      inputs.kiali_v2_17_tag,
+      inputs.kiali_v2_11_tag
+    )
+    || format('Build Kiali Operator Bundle ({0}-pr.{1}.{2})', 'v2.22.2', github.event.pull_request.number, github.run_number)
+  }}
 
 on:
   pull_request:

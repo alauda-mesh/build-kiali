@@ -1,4 +1,10 @@
 name: Build Kiali Operator
+run-name: >-
+  ${{
+    github.event_name == 'workflow_dispatch'
+    && format('Build Kiali Operator ({0}-r{1})', '2.22.2', inputs.epoch)
+    || format('Build Kiali Operator ({0}-pr.{1}.{2})', '2.22.2', github.event.pull_request.number, github.run_number)
+  }}
 
 on:
   pull_request:
