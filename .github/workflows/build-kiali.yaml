@@ -2,15 +2,11 @@ name: Build Kiali Images
 run-name: >-
   ${{
     github.event_name == 'workflow_dispatch'
-    && (
-      (inputs.epoch_v2_11 == '' && inputs.epoch_v2_17 == '' && inputs.epoch_v2_22 == '')
-      && 'Build Kiali Images (no versions selected)'
-      || format(
-        'Build Kiali Images ({0}{1}{2})',
-        inputs.epoch_v2_11 != '' && format('v2.11.0-r{0}', inputs.epoch_v2_11) || '',
-        inputs.epoch_v2_17 != '' && format('{0}v2.17.1-r{1}', inputs.epoch_v2_11 != '' && ', ' || '', inputs.epoch_v2_17) || '',
-        inputs.epoch_v2_22 != '' && format('{0}v2.22.2-r{1}', (inputs.epoch_v2_11 != '' || inputs.epoch_v2_17 != '') && ', ' || '', inputs.epoch_v2_22) || ''
-      )
+    && format(
+      'Build Kiali Images (v2.11.0={0}, v2.17.1={1}, v2.22.2={2})',
+      inputs.epoch_v2_11 != '' && format('r{0}', inputs.epoch_v2_11) || 'skip',
+      inputs.epoch_v2_17 != '' && format('r{0}', inputs.epoch_v2_17) || 'skip',
+      inputs.epoch_v2_22 != '' && format('r{0}', inputs.epoch_v2_22) || 'skip'
     )
     || 'Build Kiali Images (v2.11.0, v2.17.1, v2.22.2)'
   }}
