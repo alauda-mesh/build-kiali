@@ -51,10 +51,10 @@ jobs:
       no_proxy: ${{ vars.no_proxy }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Login to build-harbor.alauda.cn
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: build-harbor.alauda.cn
           username: ${{ secrets.HARBOR_USERNAME }}
@@ -85,7 +85,7 @@ jobs:
           make -e bundle-manifests
 
       - name: Build bundle
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: _output/kiali-operator-bundle
           file: _output/kiali-operator-bundle/bundle.Dockerfile
