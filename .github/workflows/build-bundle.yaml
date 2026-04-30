@@ -1,5 +1,21 @@
 name: Build Kiali Operator Bundle
+run-name: >-
+  ${{
+    github.event_name == 'workflow_dispatch'
+    && format(
+      'Build Kiali Operator Bundle (tag={0}, operator_tag={1}, kiali_v2_22_tag={2}, kiali_v2_17_tag={3}, kiali_v2_11_tag={4})',
+      inputs.tag,
+      inputs.operator_tag,
+      inputs.kiali_v2_22_tag,
+      inputs.kiali_v2_17_tag,
+      inputs.kiali_v2_11_tag
+    )
+    || format('{0} (Build Bundle {1}-pr.{2}.{3})', github.event.pull_request.title, 'v2.22.2', github.event.pull_request.number, github.run_number)
+  }}
 
+env:
+  IMG_PREFIX: build-harbor.alauda.cn/asm
+  IMG_REPO: kiali-operator-bundle
 on:
   pull_request:
     paths:
@@ -10,11 +26,15 @@ on:
     inputs:
       tag:
         description: Bundle tag
-        default: "v2.17.1-r0"
+        default: "v2.22.2-r0"
         required: true
       operator_tag:
         description: Operator tag
-        default: "2.17.1-r0"
+        default: "2.22.2-r0"
+        required: true
+      kiali_v2_22_tag:
+        description: Kiali v2.22 image tag
+        default: "v2.22.2-r0"
         required: true
       kiali_v2_17_tag:
         description: Kiali v2.17 image tag
@@ -27,21 +47,26 @@ on:
 
 jobs:
   build:
-    runs-on: [self-hosted, linux]
+    runs-on: [ self-hosted, linux ]
     env:
       http_proxy: ${{ vars.http_proxy }}
       https_proxy: ${{ vars.https_proxy }}
       no_proxy: ${{ vars.no_proxy }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Login to build-harbor.alauda.cn
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: build-harbor.alauda.cn
           username: ${{ secrets.HARBOR_USERNAME }}
           password: ${{ secrets.HARBOR_PASSWORD }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+        with:
+          platforms: linux/amd64,linux/arm64
 
       - name: Determine image version
         id: version
@@ -55,6 +80,7 @@ jobs:
             echo "KIALI_OPERATOR_VERSION=${OPERATOR_TAG#v}" >> $GITHUB_ENV
             echo "KIALI_2_11_VERSION=${{ inputs.kiali_v2_11_tag }}" >> $GITHUB_ENV
             echo "KIALI_2_17_VERSION=${{ inputs.kiali_v2_17_tag }}" >> $GITHUB_ENV
+            echo "KIALI_2_22_VERSION=${{ inputs.kiali_v2_22_tag }}" >> $GITHUB_ENV
           else
             BUNDLE_VERSION=$(make print-variables | grep 'KIALI_OPERATOR_BUNDLE_VERSION =' | cut -d '=' -f 2 | tr -d ' ')
             BUNDLE_TAG="v${BUNDLE_VERSION}-pr.${{ github.event.pull_request.number }}.${{ github.run_number }}"
@@ -67,14 +93,14 @@ jobs:
           make -e bundle-manifests
 
       - name: Build bundle
-        uses: docker/build-push-action@v6
-        with:
-          context: _output/kiali-operator-bundle
-          file: _output/kiali-operator-bundle/bundle.Dockerfile
-          tags: |
-            build-harbor.alauda.cn/asm/kiali-operator-bundle:${{ steps.version.outputs.tag }}
-          push: true
+        run: |
+          make -e bundle-build
         env:
+          BUNDLE_IMG: ${IMG_PREFIX}/${IMG_REPO}:${{ steps.version.outputs.tag }}
           SOURCE_DATE_EPOCH: 315532800
-          # 临时禁用 SUMMARY，详见：https://github.com/docker/build-push-action/issues/1388
-          DOCKER_BUILD_SUMMARY: false
+
+      - name: Push bundle image
+        run: |
+          make -e bundle-push
+        env:
+          BUNDLE_IMG: ${IMG_PREFIX}/${IMG_REPO}:${{ steps.version.outputs.tag }}

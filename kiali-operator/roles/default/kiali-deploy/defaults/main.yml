@@ -33,12 +33,27 @@ kiali_defaults:
       issuer_uri: ""
       scopes: ["openid", "profile", "email"]
       username_claim: "sub"
+      discovery_override:
+        authorization_endpoint: ""
+        jwks_uri: ""
+        token_endpoint: ""
+        userinfo_endpoint: ""
     openshift:
       insecure_skip_verify_tls: false
       #redirect_uris:
       #token_inactivity_timeout:
       #token_max_age:
     strategy: ""
+
+  chat_ai:
+    default_provider: ""
+    enabled: false
+    providers: []
+    store_config:
+      enabled: true
+      max_cache_memory_mb: 1024
+      reduce_threshold: 15
+      reduce_with_ai: false
 
   clustering:
     autodetect_secrets:
@@ -52,6 +67,8 @@ kiali_defaults:
   custom_dashboards: []
 
   deployment:
+    additional_pod_containers_yaml: []
+    additional_pod_init_containers_yaml: []
     #additional_service_yaml:
     affinity:
       node: {}
@@ -112,6 +129,11 @@ kiali_defaults:
     security_context: {}
     service_annotations: {}
     #service_type: "NodePort"
+    tls_config:
+      cipher_suites: []
+      max_version: ""
+      min_version: ""
+      source: ""
     tolerations: []
     topology_spread_constraints: []
     version_label: ""
@@ -128,7 +150,6 @@ kiali_defaults:
       namespace_label: "namespace"
       prometheus:
         auth:
-          ca_file: ""
           insecure_skip_verify: false
           password: ""
           token: ""
@@ -149,7 +170,6 @@ kiali_defaults:
         url: ""
     grafana:
       auth:
-        ca_file: ""
         insecure_skip_verify: false
         password: ""
         token: ""
@@ -192,7 +212,6 @@ kiali_defaults:
       validation_reconcile_interval: "1m"
     perses:
       auth:
-        ca_file: ""
         insecure_skip_verify: false
         password: ""
         type: "none"
@@ -224,7 +243,6 @@ kiali_defaults:
       url_format: ""
     prometheus:
       auth:
-        ca_file: ""
         insecure_skip_verify: false
         password: ""
         token: ""
@@ -245,7 +263,6 @@ kiali_defaults:
       url: ""
     tracing:
       auth:
-        ca_file: ""
         insecure_skip_verify: false
         password: ""
         token: ""
@@ -274,9 +291,14 @@ kiali_defaults:
         tenant: ""
         url_format: "grafana"
       use_grpc: true
+      use_waypoint_name: false
       whitelist_istio_system: ["jaeger-query", "istio-ingressgateway"]
 
   health_config:
+    compute:
+      duration: "5m"
+      refresh_interval: "3m"
+      timeout: "10m"
     rate: []
 
   identity: {}
@@ -385,6 +407,9 @@ kiali_defaults:
     observability:
       metrics:
         enabled: true
+        health_status:
+          enabled: false
+          max_consecutive_na: 3
         port: 9090
       tracing:
         collector_type: "otel"

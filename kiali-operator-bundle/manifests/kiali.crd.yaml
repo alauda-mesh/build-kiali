@@ -159,6 +159,7 @@ spec:
                         default: 300
                       authorization_endpoint:
                         type: string
+                        description: "DEPRECATED since v2.21: Use auth.openid.discovery_override.authorization_endpoint instead. The URL of the provider's authorization endpoint."
                       client_id:
                         type: string
                       disable_rbac:
@@ -177,6 +178,22 @@ spec:
                         type: array
                         items:
                           type: string
+                      discovery_override:
+                        type: object
+                        description: "Optional configuration to override OpenID Connect auto-discovery. Use when the IdP restricts access to /.well-known/openid-configuration endpoint."
+                        properties:
+                          authorization_endpoint:
+                            type: string
+                            description: "The URL of the provider's authorization endpoint."
+                          jwks_uri:
+                            type: string
+                            description: "The URL of the provider's JWK Set document."
+                          token_endpoint:
+                            type: string
+                            description: "The URL of the provider's token endpoint."
+                          userinfo_endpoint:
+                            type: string
+                            description: "The URL of the provider's UserInfo endpoint."
                       username_claim:
                         type: string
                         default: "sub"
@@ -205,7 +222,87 @@ spec:
                       token_max_age:
                         description: "Sets the absolute maximum lifetime in seconds for OAuth access tokens, regardless of activity. After this time period, tokens will expire and users must re-authenticate. If set to 0, tokens will not have an absolute expiration time and will only expire due to inactivity (if token_inactivity_timeout is configured)."
                         type: integer
-
+              chat_ai:
+                type: object
+                properties:
+                  default_provider:
+                    description: "The default provider to use for the ChatAI feature. This is the provider that will be used if no provider is specified in the request."
+                    type: string
+                  enabled:
+                    description: "Enable or disable the ChatAI feature."
+                    type: boolean
+                    default: false               
+                  providers:
+                    description: "A list of providers that can be used for the ChatAI feature. This is the list of providers that will be available to the user to choose from."
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        config:
+                          description: "The type of the config needed by the AI models provider. Available values are `default`, `gemini`, and `azure`. Default value is `default`."
+                          type: string
+                        default_model:
+                          description: "The default model of the provider."
+                          type: string  
+                        description:
+                          description: "The description of the provider."
+                          type: string
+                        enabled:
+                          description: "Enable or disable the provider."
+                          type: boolean
+                        key:
+                          description: "The key of the provider. May refer to a secret using the pattern `secret:<secretName>:<secretKey>`. When using a secret, the token is cached and automatically refreshed when the secret changes, enabling rotation without pod restart."
+                          type: string
+                        models:
+                          description: "A list of models that can be used for the ChatAI feature. This is the list of models that will be available to the user to choose from."
+                          type: array
+                          items:
+                            type: object
+                            properties:                             
+                              description:
+                                description: "The description of the model."
+                                type: string
+                              enabled:
+                                description: "Enable or disable the model."
+                                type: boolean
+                              endpoint:
+                                description: "The endpoint of the model."
+                                type: string
+                              key:
+                                description: "The key of the model. May refer to a secret using the pattern `secret:<secretName>:<secretKey>`. When using a secret, the token is cached and automatically refreshed when the secret changes, enabling rotation without pod restart."
+                                type: string
+                              name:
+                                description: "The name of the model."
+                                type: string
+                              model:
+                                description: "The model of the model."
+                                type: string
+                        name:
+                          description: "The name of the provider."
+                          type: string                        
+                        type:
+                          description: "The type of the AI models provider. Available values are `openai`. Default value is `openai`."
+                          type: string      
+                  store_config:
+                    description: "Configuration for the ChatAI store."
+                    type: object
+                    properties:
+                      enabled:
+                        description: "Enable or disable the ChatAI store."
+                        type: boolean
+                        default: true
+                      max_cache_memory_mb:
+                        description: "The maximum cache memory for the ChatAI store."
+                        type: integer
+                        default: 1024
+                      reduce_threshold:
+                        description: "The threshold for the ChatAI store reduction with AI. This is the number of messages in a conversation before the conversation is reduced."
+                        type: integer
+                        default: 15  
+                      reduce_with_ai:
+                        description: "Enable or disable the ChatAI store reduction with AI."
+                        type: boolean
+                        default: false                      
               clustering:
                 description: "Multi-cluster related features."
                 type: object
@@ -304,6 +401,18 @@ spec:
                     type: array
                     items:
                       type: string
+                  additional_pod_containers_yaml:
+                    description: "Additional containers to add to the list of pod containers. Use this to add container(s) to the Kiali pod. SECURITY: By default, the operator will forcibly apply a restrictive security context to all containers (allowPrivilegeEscalation: false, privileged: false, readOnlyRootFilesystem: true, runAsNonRoot: true, capabilities dropped). However, if the operator's ALLOW_SECURITY_CONTEXT_OVERRIDE environment variable is set to 'true', containers can define their own security contexts which will be preserved. Secret-backed volumes are automatically forced to read-only regardless of the security context override setting. Use with care since containers may cause the Kiali container itself to operate incorrectly. It is up to the user who added the additional containers to ensure it works properly inside the Kiali pod; Kiali makes no guarantee additional containers will work."
+                    type: array
+                    items:
+                      type: object
+                      x-kubernetes-preserve-unknown-fields: true
+                  additional_pod_init_containers_yaml:
+                    description: "Additional initContainers to add to the list of pod initContainers. Use this to add initContainer(s) to the Kiali pod. SECURITY: By default, the operator will forcibly apply a restrictive security context to all initContainers (allowPrivilegeEscalation: false, privileged: false, readOnlyRootFilesystem: true, runAsNonRoot: true, capabilities dropped). However, if the operator's ALLOW_SECURITY_CONTEXT_OVERRIDE environment variable is set to 'true', initContainers can define their own security contexts which will be preserved. Secret-backed volumes are automatically forced to read-only regardless of the security context override setting. Use with care since initContainers may cause the Kiali container itself to operate incorrectly. It is up to the user who added the additional initContainers to ensure it works properly inside the Kiali pod; Kiali makes no guarantee additional initContainers will work."
+                    type: array
+                    items:
+                      type: object
+                      x-kubernetes-preserve-unknown-fields: true
                   additional_service_yaml:
                     description: "Additional custom yaml to add to the service definition. This is used mainly to customize the service type. For example, if the `deployment.service_type` is set to 'LoadBalancer' and you want to set the loadBalancerIP, you can do so here with: `additional_service_yaml: { 'loadBalancerIP': '78.11.24.19' }`. Another example would be if the `deployment.service_type` is set to 'ExternalName' you will need to configure the name via: `additional_service_yaml: { 'externalName': 'my.kiali.example.com' }`. A final example would be if external IPs need to be set: `additional_service_yaml: { 'externalIPs': ['80.11.12.10'] }`"
                     type: object
@@ -347,8 +456,8 @@ spec:
                     description: |
                       Defines additional secrets that are to be mounted in the Kiali pod.
 
-                      These are useful to contain certs that are used by Kiali to securely connect to third party systems
-                      (for example, see `external_services.tracing.auth.ca_file`).
+                      These are useful to contain client certificates that are used by Kiali to authenticate to third party systems
+                      using mTLS (for example, see `external_services.tracing.auth.cert_file` and `external_services.tracing.auth.key_file`).
 
                       These secrets must be created by an external mechanism. Kiali will not generate these secrets; it
                       is assumed these secrets are externally managed. You can define 0, 1, or more secrets.
@@ -373,7 +482,7 @@ spec:
                           type: object
                           x-kubernetes-preserve-unknown-fields: true
                         mount:
-                          description: "The file path location where the secret content will be mounted. The custom secret cannot be mounted on a path that the operator will use to mount its secrets. Make sure you set your custom secret mount path to a unique, unused path. Paths such as `/kiali-configuration`, `/kiali-cert`, `/kiali-cabundle`, and `/kiali-secret` should not be used as mount paths for custom secrets because the operator may want to use one of those paths."
+                          description: "The file path location where the secret content will be mounted. The custom secret cannot be mounted on a path that the operator will use to mount its secrets. Make sure you set your custom secret mount path to a unique, unused path. Paths such as `/kiali-configuration`, `/kiali-cert`, `/kiali-cabundle`, `/kiali-secret`, `/kiali-override-secrets`, and `/kiali-remote-cluster-secrets` should not be used as mount paths for custom secrets because the operator may want to use one of those paths."
                           type: string
                         name:
                           description: "The name of the secret that is to be mounted to the Kiali pod's file system. The name of the custom secret must not be the same name as one created by the operator. Names such as `kiali`, `kiali-cert-secret`, and `kiali-cabundle` should not be used as a custom secret name because the operator may want to create one with one of those names."
@@ -792,6 +901,27 @@ spec:
                   service_type:
                     description: "The Kiali service type. Kubernetes determines what values are valid. Common values are 'NodePort', 'ClusterIP', and 'LoadBalancer'."
                     type: string
+                  tls_config:
+                    description: "TLS policy configuration. When source is 'auto' on OpenShift, the APIServer TLSSecurityProfile is used. Otherwise, the explicit config values are enforced."
+                    type: object
+                    properties:
+                      cipher_suites:
+                        description: "Explicit TLS cipher suites (OpenSSL names). Ignored for TLS 1.3."
+                        type: array
+                        items:
+                          type: string
+                      max_version:
+                        description: "Maximum TLS version (e.g., TLSv1.3, TLSv1.2)."
+                        type: string
+                      min_version:
+                        description: "Minimum TLS version (e.g., TLSv1.3, TLSv1.2)."
+                        type: string
+                      source:
+                        description: "TLS policy source: 'auto' to use OpenShift TLSSecurityProfile; 'config' to use explicit settings."
+                        type: string
+                        enum:
+                        - auto
+                        - config
                   tolerations:
                     description: "A list of tolerations which declare which node taints Kiali can tolerate. See the Kubernetes documentation on Taints and Tolerations for more details."
                     type: array
@@ -891,17 +1021,23 @@ spec:
                             type: object
                             properties:
                               ca_file:
-                                description: "The certificate authority file to use when accessing Prometheus using https. An empty string means no extra certificate authority file is used."
+                                description: "DEPRECATED since v2.20: This setting is deprecated and will be ignored. To configure custom CA certificates, use the kiali-cabundle ConfigMap instead. See the TLS Configuration documentation for details."
+                                type: string
+                              cert_file:
+                                description: "The client certificate file to use when accessing Prometheus using https with mTLS. An empty string means no client certificate is used. May refer to a secret using the pattern `secret:<secretName>:<secretKey>`. When using a secret, the certificate is cached and automatically refreshed when the secret changes, enabling rotation without pod restart."
                                 type: string
                               insecure_skip_verify:
                                 description: "Set true to skip verifying certificate validity when Kiali contacts Prometheus over https."
                                 type: boolean
                                 default: false
+                              key_file:
+                                description: "The client private key file to use when accessing Prometheus using https with mTLS. An empty string means no client private key is used. May refer to a secret using the pattern `secret:<secretName>:<secretKey>`. When using a secret, the key is cached and automatically refreshed when the secret changes, enabling rotation without pod restart."
+                                type: string
                               password:
-                                description: "Password to be used when making requests to Prometheus, for basic authentication. May refer to a secret."
+                                description: "Password to be used when making requests to Prometheus, for basic authentication. May refer to a secret using the pattern `secret:<secretName>:<secretKey>`. When using a secret, the password is cached and automatically refreshed when the secret changes, enabling rotation without pod restart."
                                 type: string
                               token:
-                                description: "Token / API key to access Prometheus, for token-based authentication. May refer to a secret."
+                                description: "Token / API key to access Prometheus, for token-based authentication. May refer to a secret using the pattern `secret:<secretName>:<secretKey>`. When using a secret, the token is cached and automatically refreshed when the secret changes, enabling rotation without pod restart."
                                 type: string
                               type:
                                 description: "The type of authentication to use when contacting the server. Use `bearer` to send the token to the Prometheus server. Use `basic` to connect with username and password credentials. Use `none` to not use any authentication."
@@ -912,7 +1048,7 @@ spec:
                                 type: boolean
                                 default: false
                               username:
-                                description: "Username to be used when making requests to Prometheus with `basic` authentication. May refer to a secret."
+                                description: "Username to be used when making requests to Prometheus with `basic` authentication. May refer to a secret using the pattern `secret:<secretName>:<secretKey>`. When using a secret, the username is cached and automatically refreshed when the secret changes, enabling rotation without pod restart."
                                 type: string
                           cache_duration:
                             description: "Prometheus caching duration expressed in seconds."
@@ -952,11 +1088,11 @@ spec:
                                 type: boolean
                                 default: false
                               retention_period:
-                                description: "Thanos Retention period value expresed as a string."
+                                description: "Thanos Retention period value expressed as a string."
                                 type: string
                                 default: "7d"
                               scrape_interval:
-                                description: "Thanos Scrape interval value expresed as a string."
+                                description: "Thanos Scrape interval value expressed as a string."
                                 type: string
                                 default: "30s"
                           url:
@@ -971,17 +1107,23 @@ spec:
                         type: object
                         properties:
                           ca_file:
-                            description: "The certificate authority file to use when accessing Grafana using https. An empty string means no extra certificate authority file is used."
+                            description: "DEPRECATED since v2.20: This setting is deprecated and will be ignored. To configure custom CA certificates, use the kiali-cabundle ConfigMap instead. See the TLS Configuration documentation for details."
+                            type: string
+                          cert_file:
+                            description: "The client certificate file to use when accessing Grafana using https with mTLS. An empty string means no client certificate is used. May refer to a secret using the pattern `secret:<secretName>:<secretKey>`. When using a secret, the certificate is cached and automatically refreshed when the secret changes, enabling rotation without pod restart."
                             type: string
                           insecure_skip_verify:
                             description: "Set true to skip verifying certificate validity when Kiali contacts Grafana over https."
                             type: boolean
                             default: false
+                          key_file:
+                            description: "The client private key file to use when accessing Grafana using https with mTLS. An empty string means no client private key is used. May refer to a secret using the pattern `secret:<secretName>:<secretKey>`. When using a secret, the key is cached and automatically refreshed when the secret changes, enabling rotation without pod restart."
+                            type: string
                           password:
-                            description: "Password to be used when making requests to Grafana, for basic authentication. May refer to a secret."
+                            description: "Password to be used when making requests to Grafana, for basic authentication. May refer to a secret using the pattern `secret:<secretName>:<secretKey>`. When using a secret, the password is cached and automatically refreshed when the secret changes, enabling rotation without pod restart."
                             type: string
                           token:
-                            description: "Token / API key to access Grafana, for token-based authentication. May refer to a secret."
+                            description: "Token / API key to access Grafana, for token-based authentication. May refer to a secret using the pattern `secret:<secretName>:<secretKey>`. When using a secret, the token is cached and automatically refreshed when the secret changes, enabling rotation without pod restart."
                             type: string
                           type:
                             description: "The type of authentication to use when contacting the server. Use `bearer` to send the token to the Grafana server. Use `basic` to connect with username and password credentials. Use `none` to not use any authentication."
@@ -992,7 +1134,7 @@ spec:
                             type: boolean
                             default: false
                           username:
-                            description: "Username to be used when making requests to Grafana with `basic` authentication. May refer to a secret."
+                            description: "Username to be used when making requests to Grafana with `basic` authentication. May refer to a secret using the pattern `secret:<secretName>:<secretKey>`. When using a secret, the username is cached and automatically refreshed when the secret changes, enabling rotation without pod restart."
                             type: string
                       dashboards:
                         description: "A list of Grafana dashboards that Kiali can link to."
@@ -1178,25 +1320,31 @@ spec:
                         type: object
                         properties:
                           ca_file:
-                            description: "The certificate authority file to use when accessing Perses using https. An empty string means no extra certificate authority file is used."
+                            description: "DEPRECATED since v2.20: This setting is deprecated and will be ignored. To configure custom CA certificates, use the kiali-cabundle ConfigMap instead. See the TLS Configuration documentation for details."
+                            type: string
+                          cert_file:
+                            description: "The client certificate file to use when accessing Perses using https with mTLS. An empty string means no client certificate is used. May refer to a secret using the pattern `secret:<secretName>:<secretKey>`. When using a secret, the certificate is cached and automatically refreshed when the secret changes, enabling rotation without pod restart."
                             type: string
                           insecure_skip_verify:
                             description: "Set true to skip verifying certificate validity when Kiali contacts Perses over https."
                             type: boolean
                             default: false
+                          key_file:
+                            description: "The client private key file to use when accessing Perses using https with mTLS. An empty string means no client private key is used. May refer to a secret using the pattern `secret:<secretName>:<secretKey>`. When using a secret, the key is cached and automatically refreshed when the secret changes, enabling rotation without pod restart."
+                            type: string
                           password:
-                            description: "Password to be used when making requests to Perses, for basic authentication. May refer to a secret."
+                            description: "Password to be used when making requests to Perses, for basic authentication. May refer to a secret using the pattern `secret:<secretName>:<secretKey>`. When using a secret, the password is cached and automatically refreshed when the secret changes, enabling rotation without pod restart."
                             type: string
                           type:
                             description: "The type of authentication to use when contacting the server. Use `bearer` to send the token to the Perses server. Use `basic` to connect with username and password credentials. Use `none` to not use any authentication."
                             type: string
                             default: "none"
                           use_kiali_token:
-                            description: "When true and if `auth.type` is `bearer`, Kiali Service Account token will be used for the API calls to Perses (in this case, `auth.token` config is ignored)."
+                            description: "When true and if `auth.type` is `bearer`, Kiali Service Account token will be used for the API calls to Perses."
                             type: boolean
                             default: false
                           username:
-                            description: "Username to be used when making requests to Perses with `basic` authentication. May refer to a secret."
+                            description: "Username to be used when making requests to Perses with `basic` authentication. May refer to a secret using the pattern `secret:<secretName>:<secretKey>`. When using a secret, the username is cached and automatically refreshed when the secret changes, enabling rotation without pod restart."
                             type: string
                       dashboards:
                         description: "A list of Perses dashboards that Kiali can link to."
@@ -1250,7 +1398,7 @@ spec:
                         type: string
                         default: "istio"
                       url_format:
-                        description: "The url format. Use `openshift` when using Perses Dashboards via the Cluster Observability operator in OpenShift. Use `default` for standard Perses upstream. "
+                        description: "The URL format. Leave empty (the default) for standard Perses upstream. Use `openshift` when using Perses Dashboards via the Cluster Observability operator in OpenShift."
                         type: string
                         default: ""
                         enum: ["", "openshift"]
@@ -1263,17 +1411,23 @@ spec:
                         type: object
                         properties:
                           ca_file:
-                            description: "The certificate authority file to use when accessing Prometheus using https. An empty string means no extra certificate authority file is used."
+                            description: "DEPRECATED since v2.20: This setting is deprecated and will be ignored. To configure custom CA certificates, use the kiali-cabundle ConfigMap instead. See the TLS Configuration documentation for details."
+                            type: string
+                          cert_file:
+                            description: "The client certificate file to use when accessing Prometheus using https with mTLS. An empty string means no client certificate is used. May refer to a secret."
                             type: string
                           insecure_skip_verify:
                             description: "Set true to skip verifying certificate validity when Kiali contacts Prometheus over https."
                             type: boolean
                             default: false
+                          key_file:
+                            description: "The client private key file to use when accessing Prometheus using https with mTLS. An empty string means no client private key is used. May refer to a secret using the pattern `secret:<secretName>:<secretKey>`. When using a secret, the key is cached and automatically refreshed when the secret changes, enabling rotation without pod restart."
+                            type: string
                           password:
-                            description: "Password to be used when making requests to Prometheus, for basic authentication. May refer to a secret."
+                            description: "Password to be used when making requests to Prometheus, for basic authentication. May refer to a secret using the pattern `secret:<secretName>:<secretKey>`. When using a secret, the password is cached and automatically refreshed when the secret changes, enabling rotation without pod restart."
                             type: string
                           token:
-                            description: "Token / API key to access Prometheus, for token-based authentication. May refer to a secret."
+                            description: "Token / API key to access Prometheus, for token-based authentication. May refer to a secret using the pattern `secret:<secretName>:<secretKey>`. When using a secret, the token is cached and automatically refreshed when the secret changes, enabling rotation without pod restart."
                             type: string
                           type:
                             description: "The type of authentication to use when contacting the server. Use `bearer` to send the token to the Prometheus server. Use `basic` to connect with username and password credentials. Use `none` to not use any authentication (this is the default)."
@@ -1284,7 +1438,7 @@ spec:
                             type: boolean
                             default: false
                           username:
-                            description: "Username to be used when making requests to Prometheus with `basic` authentication. May refer to a secret."
+                            description: "Username to be used when making requests to Prometheus with `basic` authentication. May refer to a secret using the pattern `secret:<secretName>:<secretKey>`. When using a secret, the username is cached and automatically refreshed when the secret changes, enabling rotation without pod restart."
                             type: string
                       cache_duration:
                         description: "Prometheus caching duration expressed in seconds."
@@ -1324,11 +1478,11 @@ spec:
                             type: boolean
                             default: false
                           retention_period:
-                            description: "Thanos Retention period value expresed as a string."
+                            description: "Thanos Retention period value expressed as a string."
                             type: string
                             default: "7d"
                           scrape_interval:
-                            description: "Thanos Scrape interval value expresed as a string."
+                            description: "Thanos Scrape interval value expressed as a string."
                             type: string
                             default: "30s"
                       url:
@@ -1343,17 +1497,23 @@ spec:
                         type: object
                         properties:
                           ca_file:
-                            description: "The certificate authority file to use when accessing the Tracing server using https. An empty string means no extra certificate authority file is used."
+                            description: "DEPRECATED since v2.20: This setting is deprecated and will be ignored. To configure custom CA certificates, use the kiali-cabundle ConfigMap instead. See the TLS Configuration documentation for details."
+                            type: string
+                          cert_file:
+                            description: "The client certificate file to use when accessing the Tracing server using https with mTLS. An empty string means no client certificate is used. May refer to a secret using the pattern `secret:<secretName>:<secretKey>`. When using a secret, the certificate is cached and automatically refreshed when the secret changes, enabling rotation without pod restart."
                             type: string
                           insecure_skip_verify:
                             description: "Set true to skip verifying certificate validity when Kiali contacts the Tracing server over https."
                             type: boolean
                             default: false
+                          key_file:
+                            description: "The client private key file to use when accessing the Tracing server using https with mTLS. An empty string means no client private key is used. May refer to a secret using the pattern `secret:<secretName>:<secretKey>`. When using a secret, the key is cached and automatically refreshed when the secret changes, enabling rotation without pod restart."
+                            type: string
                           password:
-                            description: "Password to be used when making requests to the Tracing server, for basic authentication. May refer to a secret."
+                            description: "Password to be used when making requests to the Tracing server, for basic authentication. May refer to a secret using the pattern `secret:<secretName>:<secretKey>`. When using a secret, the password is cached and automatically refreshed when the secret changes, enabling rotation without pod restart."
                             type: string
                           token:
-                            description: "Token / API key to access the Tracing server, for token-based authentication. May refer to a secret."
+                            description: "Token / API key to access the Tracing server, for token-based authentication. May refer to a secret using the pattern `secret:<secretName>:<secretKey>`. When using a secret, the token is cached and automatically refreshed when the secret changes, enabling rotation without pod restart."
                             type: string
                           type:
                             description: "The type of authentication to use when contacting the server. Use `bearer` to send the token to the Tracing server. Use `basic` to connect with username and password credentials. Use `none` to not use any authentication (this is the default)."
@@ -1364,7 +1524,7 @@ spec:
                             type: boolean
                             default: false
                           username:
-                            description: "Username to be used when making requests to the Tracing server with `basic` authentication. May refer to a secret."
+                            description: "Username to be used when making requests to the Tracing server with `basic` authentication. May refer to a secret using the pattern `secret:<secretName>:<secretKey>`. When using a secret, the username is cached and automatically refreshed when the secret changes, enabling rotation without pod restart."
                             type: string
                       custom_headers:
                         description: "A set of name/value settings that will be passed as headers when requests are sent to the Tracing backend."
@@ -1456,6 +1616,10 @@ spec:
                         description: "Set to true in order to enable GRPC connections between Kiali and Jaeger which will speed up the queries. In some setups you might not be able to use GRPC (e.g. if Jaeger is behind some reverse proxy that doesn't support it)."
                         type: boolean
                         default: true
+                      use_waypoint_name:
+                        description: "Set to true in order to look for traces using the waypoint service name and not the actual service. Ex. To find traces for Istio versions earlier than 1.28."
+                        type: boolean
+                        default: false
                       whitelist_istio_system:
                         description: "Kiali will get the traces of these services found in the Istio control plane namespace."
                         type: array
@@ -1467,6 +1631,22 @@ spec:
                 description: "This section defines what it means for nodes to be healthy. For more details, see https://kiali.io/docs/configuration/health/"
                 type: object
                 properties:
+                  compute:
+                    description: "Configuration for health pre-computation and caching."
+                    type: object
+                    properties:
+                      duration:
+                        description: "The time period over which health is calculated. Used as the rate interval for Prometheus queries. Minimum is '1m'."
+                        type: string
+                        default: "5m"
+                      refresh_interval:
+                        description: "The interval between health cache refreshes."
+                        type: string
+                        default: "3m"
+                      timeout:
+                        description: "The maximum time allowed for a single health refresh cycle. If exceeded, the refresh is cancelled and the next cycle starts on schedule."
+                        type: string
+                        default: "10m"
                   rate:
                     type: array
                     items:
@@ -1923,7 +2103,7 @@ spec:
                     type: integer
                     default: 86400
                   signing_key:
-                    description: "The signing key used to generate tokens for user authentication. Because this is potentially sensitive, you have the option to store this value in a secret. If you store this signing key value in a secret, you must indicate what key in what secret by setting this value to a string in the form of `secret:<secretName>:<secretKey>`. If left as an empty string, a secret with a random signing key will be generated for you. The signing key must be 16, 24 or 32 byte long."
+                    description: "The signing key used to generate tokens for user authentication. Because this is potentially sensitive, you have the option to store this value in a secret using the pattern `secret:<secretName>:<secretKey>`. When using a secret, the signing key is read dynamically, enabling automatic rotation without pod restart. If left as an empty string, a secret with a random signing key will be generated for you. The signing key must be 16, 24 or 32 byte long."
                     type: string
 
               server:
@@ -1959,9 +2139,22 @@ spec:
                         type: object
                         properties:
                           enabled:
-                            description: "When true, the metrics endpoint will be available for Prometheus to scrape."
+                            description: "The metrics HTTP listener is started when either this or health_status.enabled is true."
                             type: boolean
                             default: true
+                          health_status:
+                            description: "Settings for the kiali_health_status Prometheus gauge (per-entity health from the health cache refresh). Independent of metrics.enabled."
+                            type: object
+                            properties:
+                              enabled:
+                                description: "When true, Kiali exports kiali_health_status metrics during health cache refresh."
+                                type: boolean
+                                default: false
+                              max_consecutive_na:
+                                description: "Number of consecutive health refresh cycles an entity may report NA or be missing before its kiali_health_status series is removed. Values less than or equal to 0 use the server default (3)."
+                                type: integer
+                                default: 3
+                                minimum: 0
                           port:
                             description: "The port that the server will bind to in order to receive metric requests. This is the port Prometheus will need to scrape when collecting metrics from Kiali."
                             type: integer
@@ -1978,7 +2171,7 @@ spec:
                             enum: ["otel"]
                             default: "otel"
                           collector_url:
-                            description: "Usd to determine where the Kiali server tracing data will be stored."
+                            description: "Used to determine where the Kiali server tracing data will be stored."
                             type: string
                             default: "jaeger-collector.istio-system:4318"
                           enabled:
@@ -1990,7 +2183,7 @@ spec:
                             type: object
                             properties:
                               ca_name:
-                                description: "The name of the CA cert; this is used when `tls_enabled` is `true` and `skip_verify` is `false`."
+                                description: "DEPRECATED since v2.20: This setting is deprecated and will be ignored. To configure custom CA certificates, use the kiali-cabundle ConfigMap instead. See the TLS Configuration documentation for details."
                                 type: string
                               protocol:
                                 description: "Protocol. Value must be one of: `http`, `https` or `grpc`."
@@ -2002,7 +2195,7 @@ spec:
                                 type: boolean
                                 default: false
                               tls_enabled:
-                                description: "Enable TLS for the collector. This must be specified when `protocol` is `https` or `grpc`. When you set this to `true`, you must also set a `ca_name` or set `skip_verify` to true."
+                                description: "Enable TLS for the collector. This must be specified when `protocol` is `https` or `grpc`."
                                 type: boolean
                                 default: false
                           sampling_rate:

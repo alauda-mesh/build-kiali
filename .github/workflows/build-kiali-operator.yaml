@@ -1,4 +1,10 @@
 name: Build Kiali Operator
+run-name: >-
+  ${{
+    github.event_name == 'workflow_dispatch'
+    && format('Build Kiali Operator ({0}-r{1})', '2.22.2', inputs.epoch)
+    || format('{0} (Build Operator {1}-pr.{2}.{3})', github.event.pull_request.title, '2.22.2', github.event.pull_request.number, github.run_number)
+  }}
 
 on:
   pull_request:
@@ -16,7 +22,7 @@ on:
 
 env:
   OPERATOR_BASE_IMAGE_REPO: build-harbor.alauda.cn/asm/ansible-operator
-  OPERATOR_BASE_IMAGE_VERSION: v1.38.1-r4
+  OPERATOR_BASE_IMAGE_VERSION: v1.42.1-r1
 
 jobs:
   determine-version:
@@ -28,7 +34,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Determine image version
         id: image-version
@@ -39,7 +45,8 @@ jobs:
           elif [[ -n "${{ github.event.pull_request.number }}" ]]; then
             TAG="${TAG}-pr.${{ github.event.pull_request.number }}.${{ github.run_number }}"
           fi
-          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "::notice::tag=${TAG}"
 
   build-kiali-operator:
     name: Build kiali-operator image
@@ -49,11 +56,11 @@ jobs:
         linux,
         "${{ matrix.platform == 'linux/arm64' && 'arm64' || 'x64' }}",
       ]
-    needs: [determine-version]
+    needs: [ determine-version ]
 
     strategy:
       matrix:
-        platform: [linux/amd64, linux/arm64]
+        platform: [ linux/amd64, linux/arm64 ]
 
     env:
       http_proxy: ${{ vars.http_proxy }}
@@ -62,10 +69,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Login to build-harbor.alauda.cn
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: build-harbor.alauda.cn
           username: ${{ secrets.HARBOR_USERNAME }}
@@ -78,7 +85,7 @@ jobs:
           echo "tag=${{ needs.determine-version.outputs.tag }}-${ARCH}" >> $GITHUB_OUTPUT
 
       - name: Build and push kiali-operator image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           platforms: ${{ matrix.platform}}
           context: kiali-operator
@@ -97,17 +104,17 @@ jobs:
 
   merge-kiali-operator-manifests:
     name: Merge kiali-operator image manifests
-    runs-on: [self-hosted, linux]
+    runs-on: [ self-hosted, linux ]
 
     env:
       http_proxy: ${{ vars.http_proxy }}
       https_proxy: ${{ vars.https_proxy }}
       no_proxy: ${{ vars.no_proxy }}
 
-    needs: [determine-version, build-kiali-operator]
+    needs: [ determine-version, build-kiali-operator ]
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup crane
         uses: imjasonh/setup-crane@v0.4
@@ -115,7 +122,7 @@ jobs:
           version: latest-release
 
       - name: Login to build-harbor.alauda.cn
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: build-harbor.alauda.cn
           username: ${{ secrets.HARBOR_USERNAME }}
