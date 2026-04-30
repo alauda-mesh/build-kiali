@@ -8,6 +8,7 @@ OPERATOR_SDK_VERSION ?= 1.40.0
 HUB ?= build-harbor.alauda.cn/asm
 
 KIALI_OPERATOR_BUNDLE_VERSION ?= 2.22.2
+BUNDLE_IMG ?= $(HUB)/kiali-operator-bundle:v$(KIALI_OPERATOR_BUNDLE_VERSION)
 
 KIALI_OPERATOR_VERSION ?= 2.22.2
 KIALI_OPERATOR_REGISTRY ?= $(HUB)/kiali-operator:$(KIALI_OPERATOR_VERSION)
@@ -70,6 +71,14 @@ bundle-manifests: .ensure-operator-sdk-exists
 		KIALI_2_11=$(KIALI_2_11) \
 		envsubst < kiali-operator-bundle/manifests/kiali.clusterserviceversion.yaml | tee $(OUTDIR)/kiali-operator-bundle/manifests/kiali.clusterserviceversion.yaml
 	$(OP_SDK) bundle validate $(OUTDIR)/kiali-operator-bundle
+
+.PHONY: bundle-build
+bundle-build: ## Build the bundle image.
+	docker build -f $(OUTDIR)/kiali-operator-bundle/bundle.Dockerfile -t $(BUNDLE_IMG) $(OUTDIR)/kiali-operator-bundle
+
+.PHONY: bundle-push
+bundle-push: ## Push the bundle image.
+	docker push $(BUNDLE_IMG)
 
 .PHONY: print-variables
 print-variables: ## Print all Makefile variables; Useful to inspect overrides of variables.
