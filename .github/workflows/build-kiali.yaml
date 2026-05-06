@@ -1,4 +1,18 @@
 name: Build Kiali Images
+run-name: >-
+  ${{
+    github.event_name == 'workflow_dispatch'
+    && format(
+      'Build Kiali Images (v2.11.0={0}, v2.17.1={1}, v2.22.2={2})',
+      inputs.epoch_v2_11 != '' && format('r{0}', inputs.epoch_v2_11) || 'skip',
+      inputs.epoch_v2_17 != '' && format('r{0}', inputs.epoch_v2_17) || 'skip',
+      inputs.epoch_v2_22 != '' && format('r{0}', inputs.epoch_v2_22) || 'skip'
+    )
+    || format('{0} (Build Kiali v2.11.0, v2.17.1, v2.22.2)', github.event.pull_request.title)
+  }}
+
+env:
+  GOPROXY: "https://goproxy.cn,direct"
 
 on:
   pull_request:
@@ -8,30 +22,99 @@ on:
       - "wolfi/**.yaml"
   workflow_dispatch:
     inputs:
-      epoch:
-        description: Release epoch
-        required: true
-        type: number
-        default: 0
+      epoch_v2_11:
+        description: Kiali v2.11 的 release epoch（留空不构建）
+        required: false
+        type: string
+      epoch_v2_17:
+        description: Kiali v2.17 的 release epoch（留空不构建）
+        required: false
+        type: string
+      epoch_v2_22:
+        description: Kiali v2.22 的 release epoch（留空不构建）
+        required: false
+        type: string
 
 jobs:
-  build-packages:
-    name: Build kiali packages (${{ matrix.arch }})
-    runs-on: ${{ matrix.arch == 'aarch64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
-    strategy:
-      matrix:
-        arch: [x86_64, aarch64]
+  generate-kiali-version:
+    name: Generate kiali version matrix
+    runs-on: ubuntu-latest
+
+    outputs:
+      version: ${{ steps.set-matrix.outputs.version }}
+      package-configs: ${{ steps.set-matrix.outputs.package-configs }}
+      has-version: ${{ steps.set-matrix.outputs.has-version }}
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
+
+      - name: Set version matrix
+        id: set-matrix
+        shell: bash
+        run: |
+          find_version() {
+            local prefix="$1"
+            local match
+            match=$(find configs/kiali -maxdepth 1 -name "${prefix}.*.apko.yaml" | sort -V | tail -n 1)
+            if [[ -z "$match" ]]; then
+              echo "::error::未找到 ${prefix} 对应的 apko 配置"
+              exit 1
+            fi
+            basename "$match" .apko.yaml
+          }
+
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            selected_versions=()
+            if [[ -n "${{ inputs.epoch_v2_11 }}" ]]; then
+              selected_versions+=("$(find_version "v2.11")")
+            fi
+            if [[ -n "${{ inputs.epoch_v2_17 }}" ]]; then
+              selected_versions+=("$(find_version "v2.17")")
+            fi
+            if [[ -n "${{ inputs.epoch_v2_22 }}" ]]; then
+              selected_versions+=("$(find_version "v2.22")")
+            fi
+            if [[ ${#selected_versions[@]} -eq 0 ]]; then
+              VERSIONS="[]"
+            else
+              VERSIONS=$(printf '%s\n' "${selected_versions[@]}" | jq -R -s -c 'split("\n")[:-1]')
+            fi
+          else
+            VERSIONS=$(find configs/kiali -maxdepth 1 -name "*.yaml" -print0 | xargs -0 -I {} basename {} .apko.yaml | jq -R -cn '[inputs]')
+          fi
+
+          PACKAGE_CONFIGS=$(jq -r '.[] | "kiali-" + (ltrimstr("v")) + ".yaml"' <<< "$VERSIONS" | paste -sd, -)
+
+          if [[ "$VERSIONS" == "[]" ]]; then
+            echo "::notice::generate-kiali-version result: []，所有 epoch 均为空，本次构建直接结束。"
+            echo "has-version=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::generate-kiali-version result: ${VERSIONS}"
+            echo "has-version=true" >> "$GITHUB_OUTPUT"
+          fi
+
+          echo "version=$VERSIONS" >> "$GITHUB_OUTPUT"
+          echo "package-configs=$PACKAGE_CONFIGS" >> "$GITHUB_OUTPUT"
+
+  build-packages:
+    name: Build kiali packages (${{ matrix.arch }})
+    needs: [ generate-kiali-version ]
+    if: ${{ needs.generate-kiali-version.outputs.has-version == 'true' }}
+    runs-on: ${{ matrix.arch == 'aarch64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
+    strategy:
+      matrix:
+        arch: [ x86_64, aarch64 ]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
 
       - name: Generate kiali package list
         run: |
-          cd wolfi
-          # Create package list
-          APK_LIST=$(find *.yaml -type 'f' | tr '\n' ',')
+          APK_LIST="${{ needs.generate-kiali-version.outputs.package-configs }}"
           echo "APK_LIST=$APK_LIST" >> $GITHUB_ENV
+          echo "::notice::build-kiali package list: ${APK_LIST}"
 
       # Write the signing key from GitHub Secret
       - name: Write signing key
@@ -57,31 +140,16 @@ jobs:
           workdir: ./wolfi
 
       - name: Upload packages
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: packages-${{ matrix.arch }}
           path: packages
 
-  generate-kiali-version:
-    name: Generate kiali version matrix
-    runs-on: ubuntu-latest
-
-    outputs:
-      version: ${{ steps.set-matrix.outputs.version }}
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      - name: Set version matrix
-        id: set-matrix
-        run: |
-          VERSIONS=$(find configs/kiali -maxdepth 1 -name "*.yaml" -print0 | xargs -0 -I {} basename {} .apko.yaml | jq -R -cn '[inputs]')
-          echo "version=$VERSIONS" >> $GITHUB_OUTPUT
-
   build-images:
     name: Build Kiali ${{ matrix.version }}
-    runs-on: [self-hosted, linux]
-    needs: [build-packages, generate-kiali-version]
+    runs-on: [ self-hosted, linux ]
+    needs: [ build-packages, generate-kiali-version ]
+    if: ${{ needs.generate-kiali-version.outputs.has-version == 'true' }}
     strategy:
       matrix:
         version: ${{ fromJSON(needs.generate-kiali-version.outputs.version) }}
@@ -93,10 +161,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Download packages
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: packages-*
           merge-multiple: true
@@ -112,13 +180,42 @@ jobs:
           keyring-append: ${{ github.workspace }}/melange.rsa.pub
           source-date-epoch: 315532800
 
+      - name: Determine publish tag
+        if: github.event_name == 'workflow_dispatch'
+        id: publish-tag
+        shell: bash
+        run: |
+          VERSION="${{ matrix.version }}"
+
+          case "$VERSION" in
+            v2.11.*)
+              EPOCH="${{ inputs.epoch_v2_11 }}"
+              ;;
+            v2.17.*)
+              EPOCH="${{ inputs.epoch_v2_17 }}"
+              ;;
+            v2.22.*)
+              EPOCH="${{ inputs.epoch_v2_22 }}"
+              ;;
+            *)
+              echo "::error::未知的 Kiali 版本：$VERSION"
+              exit 1
+              ;;
+          esac
+
+          if [[ -z "$EPOCH" ]]; then
+            echo "::error::版本 $VERSION 未提供 epoch"
+            exit 1
+          fi
+
+          echo "tag=build-harbor.alauda.cn/asm/kiali:${VERSION}-r${EPOCH}" >> "$GITHUB_OUTPUT"
+
       - name: Build and push kiali images
         if: github.event_name == 'workflow_dispatch'
         uses: ./.github/actions/apko-publish
         with:
           config: configs/kiali/${{ matrix.version }}.apko.yaml
-          tag: >-
-            build-harbor.alauda.cn/asm/kiali:${{ matrix.version }}-r${{ inputs.epoch }}
+          tag: ${{ steps.publish-tag.outputs.tag }}
           build-repository-append: ./packages
           keyring-append: ${{ github.workspace }}/melange.rsa.pub
           source-date-epoch: 315532800

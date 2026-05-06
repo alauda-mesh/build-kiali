@@ -1,0 +1,64 @@
+package:
+  name: kiali-2.22
+  version: "2.22.2"
+  epoch: 0
+  description: The Console for Istio Service Mesh
+  copyright:
+    - license: Apache-2.0
+  dependencies:
+    runtime:
+      - ca-certificates
+    provides:
+      - kiali=${{package.full-version}}
+
+environment:
+  contents:
+    packages:
+      - automake
+      - busybox
+      - ca-certificates-bundle
+      - corepack
+      - go
+      - nodejs
+      - npm
+      - tree
+
+pipeline:
+  - uses: git-checkout
+    with:
+      repository: https://github.com/kiali/kiali
+      tag: v${{package.version}}
+      expected-commit: 7769925d203b808819854a91722256291596b802
+
+  - runs: |
+      # v2.22.2 前端通过 corepack 管理 Yarn 4，不能复用系统自带的 Yarn 1.x。
+      corepack enable
+      make clean-all build-ui
+
+  - uses: go/build # Builds to /opt/kiali/kiali
+    with:
+      packages: .
+      prefix: opt
+      install-dir: kiali
+      output: kiali
+      ldflags: |
+        -X runtime.buildVersion=unknown \
+        -X runtime.modinfo= \
+        -X github.com/kiali/kiali/cmd.version=v${{package.version}} \
+        -X github.com/kiali/kiali/cmd.commitHash=$(git rev-parse HEAD) \
+        -X github.com/kiali/kiali/cmd.goVersion=unknown
+
+  - uses: strip
+
+test:
+  pipeline:
+    - name: Verify Kiali API
+      runs: |
+        # Check if binary runs
+        /opt/kiali/kiali --help
+
+update:
+  enabled: true
+  github:
+    identifier: kiali/kiali
+    strip-prefix: v

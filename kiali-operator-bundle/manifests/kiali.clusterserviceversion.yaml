@@ -163,7 +163,9 @@ spec:
   - name: kiali_operator
     image: "${KIALI_OPERATOR_REGISTRY}"
   - name: kiali_default
-    image: "${KIALI_2_17}"
+    image: "${KIALI_2_22}"
+  - name: kiali_v2_22
+    image: "${KIALI_2_22}"
   - name: kiali_v2_17
     image: "${KIALI_2_17}"
   - name: kiali_v2_11
@@ -202,6 +204,7 @@ spec:
                 args:
                 - "--zap-log-level=info"
                 - "--leader-election-id=kiali-operator"
+                - "--reconcile-period=0s"
                 - "--watches-file=./$(WATCHES_FILE)"
                 - "--health-probe-bind-address=:6789"
                 - "--metrics-bind-address=:8080"
@@ -274,7 +277,9 @@ spec:
                 - name: WATCHES_FILE
                   value: "watches-k8s.yaml"
                 - name: RELATED_IMAGE_kiali_default
-                  value: "${KIALI_2_17}"
+                  value: "${KIALI_2_22}"
+                - name: RELATED_IMAGE_kiali_v2_22
+                  value: "${KIALI_2_22}"
                 - name: RELATED_IMAGE_kiali_v2_17
                   value: "${KIALI_2_17}"
                 - name: RELATED_IMAGE_kiali_v2_11

@@ -7,17 +7,20 @@ OPERATOR_SDK_VERSION ?= 1.40.0
 
 HUB ?= build-harbor.alauda.cn/asm
 
-KIALI_OPERATOR_BUNDLE_VERSION ?= 2.17.1
+KIALI_OPERATOR_BUNDLE_VERSION ?= 2.22.2
+BUNDLE_IMG ?= $(HUB)/kiali-operator-bundle:v$(KIALI_OPERATOR_BUNDLE_VERSION)
 
-KIALI_OPERATOR_VERSION ?= 2.17.1
+KIALI_OPERATOR_VERSION ?= 2.22.2
 KIALI_OPERATOR_REGISTRY ?= $(HUB)/kiali-operator:$(KIALI_OPERATOR_VERSION)
 KIALI_DEFAULT_SUPPORTED_IMAGES ?= kiali-operator/playbooks/kiali-default-supported-images.yml
 
+KIALI_2_22_VERSION ?= v2.22.2
+KIALI_2_22 ?= $(HUB)/kiali:$(KIALI_2_22_VERSION)
 KIALI_2_17_VERSION ?= v2.17.1
 KIALI_2_17 ?= $(HUB)/kiali:$(KIALI_2_17_VERSION)
 KIALI_2_11_VERSION ?= v2.11.0
 KIALI_2_11 ?= $(HUB)/kiali:$(KIALI_2_11_VERSION)
-CREATED_AT ?= 2025-11-27T00:00:00Z
+CREATED_AT ?= 2026-04-28T00:00:00Z
 
 PLATFORM := $(shell uname -s | tr '[:upper:]' '[:lower:]')
 MACHINE_TYPE := $(shell uname -m)
@@ -63,10 +66,19 @@ bundle-manifests: .ensure-operator-sdk-exists
 		KIALI_OPERATOR_VERSION=$(KIALI_OPERATOR_VERSION) \
 		KIALI_OPERATOR_REGISTRY=$(KIALI_OPERATOR_REGISTRY) \
 		CREATED_AT=$(CREATED_AT) \
+		KIALI_2_22=$(KIALI_2_22) \
 		KIALI_2_17=$(KIALI_2_17) \
 		KIALI_2_11=$(KIALI_2_11) \
 		envsubst < kiali-operator-bundle/manifests/kiali.clusterserviceversion.yaml | tee $(OUTDIR)/kiali-operator-bundle/manifests/kiali.clusterserviceversion.yaml
 	$(OP_SDK) bundle validate $(OUTDIR)/kiali-operator-bundle
+
+.PHONY: bundle-build
+bundle-build: ## Build the bundle image.
+	docker build -f $(OUTDIR)/kiali-operator-bundle/bundle.Dockerfile -t $(BUNDLE_IMG) $(OUTDIR)/kiali-operator-bundle
+
+.PHONY: bundle-push
+bundle-push: ## Push the bundle image.
+	docker push $(BUNDLE_IMG)
 
 .PHONY: print-variables
 print-variables: ## Print all Makefile variables; Useful to inspect overrides of variables.
