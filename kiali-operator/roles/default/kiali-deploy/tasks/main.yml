@@ -262,13 +262,18 @@
       {% endif %}
 
       {# Set default Prometheus URL #}
-      {% if kv.external_services.prometheus.url == "" %}
+      {% if kv.external_services.prometheus.enabled|bool == True and kv.external_services.prometheus.url == "" %}
       {% set kv = kv | combine({'external_services': {'prometheus': {'url': 'http://prometheus.' + kv.deployment.namespace + ':9090'}}}, recursive=True) %}
       {% endif %}
 
       {# Set default HPA api_version #}
       {% if kv.deployment.hpa.api_version == "" %}
       {% set kv = kv | combine({'deployment': {'hpa': {'api_version': autoscaling_api_version }}}, recursive=True) %}
+      {% endif %}
+
+      {# Set default PDB api_version #}
+      {% if kv.deployment.pod_disruption_budget.api_version == "" %}
+      {% set kv = kv | combine({'deployment': {'pod_disruption_budget': {'api_version': 'policy/v1'}}}, recursive=True) %}
       {% endif %}
 
       {# Provide some default resource limits #}
@@ -629,27 +634,27 @@
       {% set d = {} %}
 
       {# Prepare the secret volume for prometheus username #}
-      {% if kiali_vars is defined and kiali_vars.external_services is defined and kiali_vars.external_services.prometheus is defined and kiali_vars.external_services.prometheus.auth is defined and (kiali_vars.external_services.prometheus.auth.username | default('')) | regex_search('secret:.+:.+') %}
+      {% if kiali_vars is defined and kiali_vars.external_services is defined and kiali_vars.external_services.prometheus is defined and kiali_vars.external_services.prometheus.enabled is defined and kiali_vars.external_services.prometheus.enabled|bool == True and kiali_vars.external_services.prometheus.auth is defined and (kiali_vars.external_services.prometheus.auth.username | default('')) | regex_search('secret:.+:.+') %}
       {% set d = d | combine({'prometheus-username': {'secret_name': kiali_vars.external_services.prometheus.auth.username | regex_replace('secret:(.+):.+', '\\1'), 'secret_key': kiali_vars.external_services.prometheus.auth.username | regex_replace('secret:.+:(.+)', '\\1') }}) %}
       {% endif %}
 
       {# Prepare the secret volume for prometheus password #}
-      {% if kiali_vars is defined and kiali_vars.external_services is defined and kiali_vars.external_services.prometheus is defined and kiali_vars.external_services.prometheus.auth is defined and (kiali_vars.external_services.prometheus.auth.password | default('')) | regex_search('secret:.+:.+') %}
+      {% if kiali_vars is defined and kiali_vars.external_services is defined and kiali_vars.external_services.prometheus is defined and kiali_vars.external_services.prometheus.enabled is defined and kiali_vars.external_services.prometheus.enabled|bool == True and kiali_vars.external_services.prometheus.auth is defined and (kiali_vars.external_services.prometheus.auth.password | default('')) | regex_search('secret:.+:.+') %}
       {% set d = d | combine({'prometheus-password': {'secret_name': kiali_vars.external_services.prometheus.auth.password | regex_replace('secret:(.+):.+', '\\1'), 'secret_key': kiali_vars.external_services.prometheus.auth.password | regex_replace('secret:.+:(.+)', '\\1') }}) %}
       {% endif %}
 
       {# Prepare the secret volume for prometheus token #}
-      {% if kiali_vars is defined and kiali_vars.external_services is defined and kiali_vars.external_services.prometheus is defined and kiali_vars.external_services.prometheus.auth is defined and (kiali_vars.external_services.prometheus.auth.token | default('')) | regex_search('secret:.+:.+') %}
+      {% if kiali_vars is defined and kiali_vars.external_services is defined and kiali_vars.external_services.prometheus is defined and kiali_vars.external_services.prometheus.enabled is defined and kiali_vars.external_services.prometheus.enabled|bool == True and kiali_vars.external_services.prometheus.auth is defined and (kiali_vars.external_services.prometheus.auth.token | default('')) | regex_search('secret:.+:.+') %}
       {% set d = d | combine({'prometheus-token': {'secret_name': kiali_vars.external_services.prometheus.auth.token | regex_replace('secret:(.+):.+', '\\1'), 'secret_key': kiali_vars.external_services.prometheus.auth.token | regex_replace('secret:.+:(.+)', '\\1') }}) %}
       {% endif %}
 
       {# Prepare the secret volume for prometheus cert_file #}
-      {% if kiali_vars is defined and kiali_vars.external_services is defined and kiali_vars.external_services.prometheus is defined and kiali_vars.external_services.prometheus.auth is defined and (kiali_vars.external_services.prometheus.auth.cert_file | default('')) | regex_search('secret:.+:.+') %}
+      {% if kiali_vars is defined and kiali_vars.external_services is defined and kiali_vars.external_services.prometheus is defined and kiali_vars.external_services.prometheus.enabled is defined and kiali_vars.external_services.prometheus.enabled|bool == True and kiali_vars.external_services.prometheus.auth is defined and (kiali_vars.external_services.prometheus.auth.cert_file | default('')) | regex_search('secret:.+:.+') %}
       {% set d = d | combine({'prometheus-cert': {'secret_name': kiali_vars.external_services.prometheus.auth.cert_file | regex_replace('secret:(.+):.+', '\\1'), 'secret_key': kiali_vars.external_services.prometheus.auth.cert_file | regex_replace('secret:.+:(.+)', '\\1'), 'path': kiali_vars.external_services.prometheus.auth.cert_file | regex_replace('secret:.+:(.+)', '\\1') }}) %}
       {% endif %}
 
       {# Prepare the secret volume for prometheus key_file #}
-      {% if kiali_vars is defined and kiali_vars.external_services is defined and kiali_vars.external_services.prometheus is defined and kiali_vars.external_services.prometheus.auth is defined and (kiali_vars.external_services.prometheus.auth.key_file | default('')) | regex_search('secret:.+:.+') %}
+      {% if kiali_vars is defined and kiali_vars.external_services is defined and kiali_vars.external_services.prometheus is defined and kiali_vars.external_services.prometheus.enabled is defined and kiali_vars.external_services.prometheus.enabled|bool == True and kiali_vars.external_services.prometheus.auth is defined and (kiali_vars.external_services.prometheus.auth.key_file | default('')) | regex_search('secret:.+:.+') %}
       {% set d = d | combine({'prometheus-key': {'secret_name': kiali_vars.external_services.prometheus.auth.key_file | regex_replace('secret:(.+):.+', '\\1'), 'secret_key': kiali_vars.external_services.prometheus.auth.key_file | regex_replace('secret:.+:(.+)', '\\1'), 'path': kiali_vars.external_services.prometheus.auth.key_file | regex_replace('secret:.+:(.+)', '\\1') }}) %}
       {% endif %}
 
@@ -876,6 +881,8 @@
       privileged: false
       readOnlyRootFilesystem: true
       runAsNonRoot: true
+      seccompProfile:
+        type: RuntimeDefault
       capabilities:
         drop: ['ALL']
     # Apply security guardrails to each container using pure Ansible
@@ -980,6 +987,8 @@
       privileged: false
       readOnlyRootFilesystem: true
       runAsNonRoot: true
+      seccompProfile:
+        type: RuntimeDefault
       capabilities:
         drop: ['ALL']
     # Apply security guardrails to each initContainer using pure Ansible

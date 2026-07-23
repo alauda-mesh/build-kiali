@@ -2,8 +2,8 @@ name: Build Kiali Operator
 run-name: >-
   ${{
     github.event_name == 'workflow_dispatch'
-    && format('Build Kiali Operator ({0}-r{1})', '2.22.2', inputs.epoch)
-    || format('{0} (Build Operator {1}-pr.{2}.{3})', github.event.pull_request.title, '2.22.2', github.event.pull_request.number, github.run_number)
+    && format('Build Kiali Operator ({0}-r{1})', '2.27.1', inputs.epoch)
+    || format('{0} (Build Operator {1}-pr.{2}.{3})', github.event.pull_request.title, '2.27.1', github.event.pull_request.number, github.run_number)
   }}
 
 on:
@@ -22,7 +22,7 @@ on:
 
 env:
   OPERATOR_BASE_IMAGE_REPO: build-harbor.alauda.cn/asm/ansible-operator
-  OPERATOR_BASE_IMAGE_VERSION: main
+  OPERATOR_BASE_IMAGE_VERSION: v1.42.1-r4
   IMAGE_REPOSITORY: build-harbor.alauda.cn/asm/kiali-operator
 
 jobs:

@@ -63,7 +63,7 @@ bash "$SKILL_DIR/scripts/update-versions.sh"
 
 然后审阅两处生成/合并内容：
 
-4. **wolfi 构建步骤**：Read 新生成的 `wolfi/kiali-<版本>.yaml`。它复制自旧版本模板，新版本 kiali 的前端构建工具链可能变化（例如 v2.22 开始需要 corepack 启用 Yarn 4），检查注释与构建步骤是否仍适用，不确定就查上游 kiali 仓库对应 tag 的 Makefile（`make clean-all build-ui` 相关目标）；
+4. **wolfi 构建步骤**：Read 新生成的 `wolfi/kiali-<版本>.yaml`。它复制自旧版本模板，新版本 kiali 的前端构建工具链可能变化（例如 v2.22 开始需要 corepack 启用 Yarn 4），检查注释与构建步骤是否仍适用；同时把注释里引用的旧版本号改写为新版本（残留的旧版本号会在该版本未来被淘汰时触发 check-leftovers 的 FAIL）。不确定就查上游 kiali 仓库对应 tag 的 `make/Makefile.build.mk`（`clean-all`/`build-ui`/`.ensure-yarn-version` 目标）与 `frontend/package.json` 的 `packageManager`、`engines.node`；
 5. **CSV 语义合并**：
 
 ```bash
@@ -81,7 +81,7 @@ bash "$SKILL_DIR/scripts/check-leftovers.sh"
 脚本逐项校验：VERSION/Makefile/CSV/三条 workflow/wolfi/configs/roles/supported-images 中新版本是否齐全、被淘汰版本是否残留。输出 `PASS`/`FAIL`/`WARN` 列表：
 
 - **FAIL**：必须修复（通常是步骤 3 的遗漏），修完重跑本脚本直到无 FAIL；
-- **WARN**（roles/ 内上游内容里出现老版本号等）：逐条判断，属上游自带内容可保留，并在汇报中说明。
+- **WARN**（roles/、原样复制的 CRD 等上游内容里出现老版本号）：逐条判断，属上游自带内容可保留并在汇报中说明。已知的良性例子：CRD 里的 `DEPRECATED AFTER vX.Y` 弃用文案（指配置项弃用时间点，不是版本快照残留）、`ossmconsole-default-supported-images.yml` 里的老版本行。
 
 ## 步骤 5：提交与汇报
 
@@ -109,11 +109,14 @@ bash "$SKILL_DIR/scripts/create-pr.sh" <PR正文文件>
 bash "$SKILL_DIR/scripts/watch-pipelines.sh"
 ```
 
+注意：三条 workflow 的 `paths` 过滤按**整个 PR 的 diff** 评估，因此之后每次 push（包括只改文档的 commit）都会重新触发全部三条流水线——修复/补充要攒成一批一次 push。watch-pipelines.sh 每轮都会重取 PR 最新 head，监控运行中 push 无需重启它；只有在它已退出（如 PIPELINE_FAILED 后修复重推）时才需要重新后台运行。
+
 按退出结果处理：
 
 - **PIPELINE_SUCCESS（0）**：全部成功，把各流水线链接加入最终汇报；
 - **PIPELINE_FAILED（2）**：输出已附失败 job 概览与日志摘要。分析失败原因：定位失败 step，判断是本次同步引入（新版本源码构建不兼容、前端工具链变化、CSV/bundle 校验失败、workflow 编辑错误）还是环境问题（runner、registry 登录、代理）。需要更多日志时用 `gh run view <run-id> --repo alauda-mesh/build-kiali --log-failed`。属同步引入的问题：修复 → 新 commit → `git push origin HEAD`（PR 会自动触发新一轮流水线）→ 重新后台运行 watch-pipelines.sh；拿不准的修复先向用户提问；
 - **PIPELINE_TIMEOUT（3）**：告知用户流水线仍在运行，附 run 链接；
-- **PIPELINE_NOT_FOUND（4）**：按脚本提示排查（runner 不在线、paths 未触发），如实告知用户。
+- **PIPELINE_NOT_FOUND（4）**：按脚本提示排查（runner 不在线、paths 未触发），如实告知用户；
+- **其他退出码（如 1）**：脚本自身异常（历史上出现过 gh 瞬时网络错误被 `set -e` 终止，已在脚本内加重试防护），读后台输出定位原因，必要时修脚本后重新后台运行。
 
 最后补充汇报：PR 链接 + 三条流水线结果（成功链接 / 失败原因分析）。到此流程结束，等用户 review 与合并；不要自行 merge PR。

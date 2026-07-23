@@ -16,9 +16,13 @@ fail() { echo "FAIL $1"; FAIL=$((FAIL + 1)); }
 check() { local desc="$1"; shift; if "$@" >/dev/null 2>&1; then pass "$desc"; else fail "$desc"; fi; }
 
 # ---------- 被淘汰版本残留扫描 ----------
-# 我们自己维护的文件里出现被淘汰版本 = FAIL；roles/ 等上游内容里出现 = WARN
+# 我们自己维护的文件里出现被淘汰版本 = FAIL；roles/、CRD 等上游原样内容里出现 = WARN
+# kiali.crd.yaml 由 sync.sh 从上游原样复制，里面 "DEPRECATED AFTER vX.Y" 等描述文案
+# 指的是配置项的弃用时间点，不是版本快照残留，因此排除出 FAIL 扫描、归入 WARN 扫描。
+CRD_FILE=kiali-operator-bundle/manifests/kiali.crd.yaml
 MANAGED=(Makefile .github kiali-operator-bundle wolfi configs
-  kiali-operator/VERSION kiali-operator/playbooks/kiali-default-supported-images.yml)
+  kiali-operator/VERSION kiali-operator/playbooks/kiali-default-supported-images.yml
+  ":(exclude)${CRD_FILE}")
 for d in $DROP_MINORS; do
   us="$(minor_us "$d")"
   dot="$(echo "${d#v}" | sed 's/\./\\./g')"     # 2\.11
@@ -31,10 +35,10 @@ for d in $DROP_MINORS; do
   else
     pass "残留检查: 受管文件中无 ${d} 残留"
   fi
-  role_hits="$(git grep -nE "$pattern" -- kiali-operator/roles kiali-operator/playbooks 2>/dev/null | grep -v kiali-default-supported-images.yml || true)"
+  role_hits="$(git grep -nE "$pattern" -- kiali-operator/roles kiali-operator/playbooks "$CRD_FILE" 2>/dev/null | grep -v kiali-default-supported-images.yml || true)"
   if [[ -n "$role_hits" ]]; then
     WARNED=$((WARNED + 1))
-    warn "roles/playbooks（上游内容）中出现 ${d}，请逐条判断是否需要处理:"
+    warn "roles/playbooks/CRD（上游内容）中出现 ${d}，请逐条判断是否需要处理:"
     echo "$role_hits" | head -20 | sed 's/^/       /'
   fi
 done

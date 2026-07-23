@@ -18,11 +18,24 @@ START=$(date +%s)
 
 echo "监控 PR #$PR_NUMBER（https://github.com/$REPO/pull/$PR_NUMBER）的流水线，超时 ${TIMEOUT}s ..."
 
+LAST_HEAD=""; HEAD_SEEN_AT=$START
+
 while true; do
   NOW=$(date +%s); ELAPSED=$((NOW - START))
 
-  # 每轮都取 PR 最新 head（期间可能 push 了修复 commit）
-  HEAD_OID="$(gh pr view "$PR_NUMBER" --repo "$REPO" --json headRefOid -q .headRefOid)"
+  # 每轮都取 PR 最新 head（期间可能 push 了修复 commit）。
+  # gh 瞬时失败（网络抖动/代理闪断）只告警重试，不能让 set -e 杀掉整个监控。
+  HEAD_OID="$(gh pr view "$PR_NUMBER" --repo "$REPO" --json headRefOid -q .headRefOid 2>/dev/null || true)"
+  if [[ -z "$HEAD_OID" ]]; then
+    echo "[${ELAPSED}s] WARN: 获取 PR head 失败（gh/网络瞬时错误），${INTERVAL}s 后重试"
+    [[ $ELAPSED -ge $TIMEOUT ]] && { echo "PIPELINE_TIMEOUT"; exit 3; }
+    sleep "$INTERVAL"; continue
+  fi
+  # push 新 commit 后，"流水线尚未出现"的宽限期要按新 head 首次被看到的时刻重新起算
+  if [[ "$HEAD_OID" != "$LAST_HEAD" ]]; then
+    LAST_HEAD="$HEAD_OID"; HEAD_SEEN_AT=$NOW
+  fi
+  HEAD_ELAPSED=$((NOW - HEAD_SEEN_AT))
   # 注意: 必须用 workflowName（.name 返回的是 run-name 展示标题，不是 workflow 名）
   RUNS="$(gh run list --repo "$REPO" --commit "$HEAD_OID" \
     --json workflowName,status,conclusion,url,databaseId \
@@ -32,7 +45,7 @@ while true; do
 
   RUN_COUNT="$(echo "$RUNS" | grep -c . || true)"
   if [[ "$RUN_COUNT" -eq 0 ]]; then
-    if [[ $ELAPSED -ge $GRACE ]]; then
+    if [[ $HEAD_ELAPSED -ge $GRACE ]]; then
       echo "PIPELINE_NOT_FOUND"
       echo "等待 ${GRACE}s 后仍未发现 commit ${HEAD_OID:0:8} 触发的流水线。排查方向: self-hosted runner 是否在线、PR 变更是否命中各 workflow 的 paths 过滤、目标分支是否为 ${TARGET_BRANCH}。"
       exit 4
@@ -47,7 +60,7 @@ while true; do
 
   if [[ "$PENDING" -eq 0 ]]; then
     # 宽限期内继续等可能还没触发的 workflow（三条 paths 都会命中同步 PR）
-    if [[ "$RUN_COUNT" -lt ${#EXPECTED_WORKFLOWS[@]} && $ELAPSED -lt $GRACE ]]; then
+    if [[ "$RUN_COUNT" -lt ${#EXPECTED_WORKFLOWS[@]} && $HEAD_ELAPSED -lt $GRACE ]]; then
       sleep "$INTERVAL"; continue
     fi
     break
