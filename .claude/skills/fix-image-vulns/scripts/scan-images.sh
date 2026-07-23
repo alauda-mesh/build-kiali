@@ -27,10 +27,16 @@ for img in $IMAGES; do
   log="$VULN_DIR/trivy-round${ROUND}-${tag}.log"
 
   info "扫描 ${ref}（第 ${ROUND} 轮）..."
+  # 参数对齐内部扫描服务（scan-image.sh 的查询参数），仅 detection-priority 不同:
+  #   vulnerability_type=os,library → --pkg-types os,library（并加 --scanners vuln，
+  #     不带的话 trivy 默认还开 secret 扫描，服务端只扫漏洞）
+  #   trivy_db_date=latest          → trivy 默认每次运行按需更新 DB，即 latest
+  #   severity=low                  → 不传 --severity（默认含 UNKNOWN~CRITICAL，
+  #     是 low 及以上的超集；UNKNOWN 评级下也有真实 CVE，收窄会漏报）
   scanned=""
   for attempt in 1 2; do
-    if trivy image --detection-priority comprehensive --format json --output "$out" \
-         --timeout 15m --quiet "$ref" 2>"$log"; then
+    if trivy image --detection-priority comprehensive --scanners vuln --pkg-types os,library \
+         --format json --output "$out" --timeout 15m --quiet "$ref" 2>"$log"; then
       scanned=1; break
     fi
     [[ "$attempt" -lt 2 ]] && { warn "扫描失败，15s 后重试"; sleep 15; }
