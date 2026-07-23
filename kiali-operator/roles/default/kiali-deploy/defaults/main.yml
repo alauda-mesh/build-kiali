@@ -51,9 +51,11 @@ kiali_defaults:
     providers: []
     store_config:
       enabled: true
+      inactivity_timeout: "30m"
       max_cache_memory_mb: 1024
       reduce_threshold: 15
       reduce_with_ai: false
+    tools: {}
 
   clustering:
     autodetect_secrets:
@@ -109,6 +111,9 @@ kiali_defaults:
     node_selector: {}
     pod_annotations:
       proxy.istio.io/config: '{ "holdApplicationUntilProxyStarts": true }'
+    pod_disruption_budget:
+      api_version: ""
+      spec: {}
     pod_labels: {}
     priority_class_name: ""
     probes:
@@ -129,6 +134,7 @@ kiali_defaults:
     security_context: {}
     service_annotations: {}
     #service_type: "NodePort"
+    strategy: {}
     tls_config:
       cipher_suites: []
       max_version: ""
@@ -206,7 +212,7 @@ kiali_defaults:
       gateway_api_classes: []
       gateway_api_classes_label_selector: ""
       istio_api_enabled: true
-      istio_identity_domain: "svc.cluster.local"
+      istio_identity_domain: ""
       istiod_polling_interval_seconds: 20
       validation_change_detection_enabled: true
       validation_reconcile_interval: "1m"
@@ -253,6 +259,7 @@ kiali_defaults:
       cache_enabled: true
       cache_expiration: 300
       custom_headers: {}
+      enabled: true
       health_check_url: ""
       is_core: true
       query_scope: {}
@@ -307,13 +314,11 @@ kiali_defaults:
 
   istio_labels:
     app_label_name: ""
-    egress_gateway_label: "istio=egressgateway"
-    ingress_gateway_label: "istio=ingressgateway"
-    injection_label_name: "istio-injection"
-    injection_label_rev: "istio.io/rev"
     version_label_name: ""
 
   kiali_feature_flags:
+    authz:
+      require_namespace_get: false
     clustering:
       enable_exec_provider: false
     custom_workload_types: []
