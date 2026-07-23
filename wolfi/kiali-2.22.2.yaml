@@ -42,11 +42,8 @@ pipeline:
       install-dir: kiali
       output: kiali
       ldflags: |
-        -X runtime.buildVersion=unknown \
-        -X runtime.modinfo= \
         -X github.com/kiali/kiali/cmd.version=v${{package.version}} \
-        -X github.com/kiali/kiali/cmd.commitHash=$(git rev-parse HEAD) \
-        -X github.com/kiali/kiali/cmd.goVersion=unknown
+        -X github.com/kiali/kiali/cmd.commitHash=$(git rev-parse HEAD)
 
   - uses: strip
 
