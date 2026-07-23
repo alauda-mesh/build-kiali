@@ -27,9 +27,13 @@ environment:
 pipeline:
   - uses: git-checkout
     with:
-      repository: https://github.com/kiali/kiali
-      tag: v${{package.version}}
-      expected-commit: 0c485691ce81338523f24f8f0b67b2749d4987aa
+      repository: https://github.com/alauda-mesh/kiali
+      branch: kiali-2.17.1
+
+  - runs: |
+      echo "Kiali source branch: kiali-2.17.1"
+      echo "Kiali source commit: $(git rev-parse HEAD)"
+      git log -1 --format='Kiali source commit details: %H %cI %s'
 
   - runs: make clean-all build-ui
 

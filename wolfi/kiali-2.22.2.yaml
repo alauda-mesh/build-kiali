@@ -27,9 +27,13 @@ environment:
 pipeline:
   - uses: git-checkout
     with:
-      repository: https://github.com/kiali/kiali
-      tag: v${{package.version}}
-      expected-commit: 7769925d203b808819854a91722256291596b802
+      repository: https://github.com/alauda-mesh/kiali
+      branch: kiali-2.22.2
+
+  - runs: |
+      echo "Kiali source branch: kiali-2.22.2"
+      echo "Kiali source commit: $(git rev-parse HEAD)"
+      git log -1 --format='Kiali source commit details: %H %cI %s'
 
   - runs: |
       # v2.22.2 前端通过 corepack 管理 Yarn 4，不能复用系统自带的 Yarn 1.x。
