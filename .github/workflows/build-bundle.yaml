@@ -94,6 +94,21 @@ jobs:
         run: |
           make -e bundle-manifests
 
+      - name: Add bundle provenance metadata
+        shell: bash
+        env:
+          BUNDLE_DOCKERFILE: _output/kiali-operator-bundle/bundle.Dockerfile
+          SOURCE: ${{ github.server_url }}/${{ github.repository }}
+          SOURCE_REVISION: ${{ github.sha }}
+          SOURCE_REF: ${{ github.ref }}
+        run: |
+          {
+            printf '\n'
+            printf 'LABEL org.opencontainers.image.source="%s"\n' "$SOURCE"
+            printf 'LABEL org.opencontainers.image.revision="%s"\n' "$SOURCE_REVISION"
+            printf 'LABEL org.opencontainers.image.ref.name="%s"\n' "$SOURCE_REF"
+          } >> "$BUNDLE_DOCKERFILE"
+
       - name: Build bundle
         run: |
           make -e bundle-build

@@ -95,6 +95,10 @@ jobs:
           build-args: |
             OPERATOR_BASE_IMAGE_REPO=${{ env.OPERATOR_BASE_IMAGE_REPO }}
             OPERATOR_BASE_IMAGE_VERSION=${{ env.OPERATOR_BASE_IMAGE_VERSION }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.ref.name=${{ github.ref }}
           tags: |
             ${{ env.IMAGE_NAME }}:${{ steps.platform-tag.outputs.tag }}
         env:
