@@ -13,6 +13,7 @@ run-name: >-
 
 env:
   GOPROXY: "https://goproxy.cn,direct"
+  IMAGE_REPOSITORY: build-harbor.alauda.cn/asm/kiali
 
 on:
   pull_request:
@@ -150,6 +151,8 @@ jobs:
     runs-on: [ self-hosted, linux ]
     needs: [ build-packages, generate-kiali-version ]
     if: ${{ needs.generate-kiali-version.outputs.has-version == 'true' }}
+    outputs:
+      image: ${{ steps.output_image.outputs.image }}
     strategy:
       matrix:
         version: ${{ fromJSON(needs.generate-kiali-version.outputs.version) }}
@@ -208,7 +211,7 @@ jobs:
             exit 1
           fi
 
-          echo "tag=build-harbor.alauda.cn/asm/kiali:${VERSION}-r${EPOCH}" >> "$GITHUB_OUTPUT"
+          echo "tag=${IMAGE_REPOSITORY}:${VERSION}-r${EPOCH}" >> "$GITHUB_OUTPUT"
 
       - name: Build and push kiali images
         if: github.event_name == 'workflow_dispatch'
@@ -221,3 +224,17 @@ jobs:
           source-date-epoch: 315532800
           generic-user: ${{ secrets.HARBOR_USERNAME }}
           generic-pass: ${{ secrets.HARBOR_PASSWORD }}
+
+      - name: "Output image: ${{ github.event_name == 'workflow_dispatch' && steps.publish-tag.outputs.tag || format('ghcr.io/{0}/kiali:{1}', github.repository_owner, matrix.version) }}"
+        id: output_image
+        shell: bash
+        env:
+          IMAGE: ${{ github.event_name == 'workflow_dispatch' && steps.publish-tag.outputs.tag || format('ghcr.io/{0}/kiali:{1}', github.repository_owner, matrix.version) }}
+        run: |
+          echo "BUILD_IMAGE=${IMAGE}"
+          echo "image=${IMAGE}" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Build image"
+            echo
+            echo "\`${IMAGE}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
