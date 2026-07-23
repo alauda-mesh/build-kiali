@@ -23,6 +23,7 @@ on:
 env:
   OPERATOR_BASE_IMAGE_REPO: build-harbor.alauda.cn/asm/ansible-operator
   OPERATOR_BASE_IMAGE_VERSION: main
+  IMAGE_REPOSITORY: build-harbor.alauda.cn/asm/kiali-operator
 
 jobs:
   determine-version:
@@ -97,7 +98,7 @@ jobs:
           tags: |
             ${{ env.IMAGE_NAME }}:${{ steps.platform-tag.outputs.tag }}
         env:
-          IMAGE_NAME: build-harbor.alauda.cn/asm/kiali-operator
+          IMAGE_NAME: ${{ env.IMAGE_REPOSITORY }}
           SOURCE_DATE_EPOCH: 315532800
           # 临时禁用 SUMMARY，详见：https://github.com/docker/build-push-action/issues/1388
           DOCKER_BUILD_SUMMARY: false
@@ -105,6 +106,8 @@ jobs:
   merge-kiali-operator-manifests:
     name: Merge kiali-operator image manifests
     runs-on: [self-hosted, linux]
+    outputs:
+      image: ${{ steps.output_image.outputs.image }}
 
     env:
       http_proxy: ${{ vars.http_proxy }}
@@ -130,7 +133,7 @@ jobs:
 
       - name: Merge manifests and push to image registry
         env:
-          IMAGE_NAME: build-harbor.alauda.cn/asm/kiali-operator
+          IMAGE_NAME: ${{ env.IMAGE_REPOSITORY }}
           TAG_PREFIX: ${{ needs.determine-version.outputs.tag }}
           TAGS: ${{ needs.determine-version.outputs.tag }}
         run: |
@@ -140,3 +143,17 @@ jobs:
               -m "${IMAGE_NAME}:${TAG_PREFIX}-arm64" \
               -t "${IMAGE_NAME}:${TAG}"
           done
+
+      - name: "Output image: ${{ env.IMAGE_REPOSITORY }}:${{ needs.determine-version.outputs.tag }}"
+        id: output_image
+        shell: bash
+        env:
+          IMAGE: ${{ env.IMAGE_REPOSITORY }}:${{ needs.determine-version.outputs.tag }}
+        run: |
+          echo "BUILD_IMAGE=${IMAGE}"
+          echo "image=${IMAGE}" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Build image"
+            echo
+            echo "\`${IMAGE}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
