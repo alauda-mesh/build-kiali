@@ -14,7 +14,7 @@
 
 ## 版本升级
 
-使用 Claude Code skill [`sync-upstream`](.claude/skills/sync-upstream/SKILL.md)（仅显式调用）同步上游 [kiali/kiali-operator](https://github.com/kiali/kiali-operator) 到本仓库，自动完成：源码复制与版本裁剪（保留最新 3 个版本快照 + default）、VERSION/Makefile/CSV/CRD/wolfi/apko/流水线的版本更新、一致性校验、创建 PR 并监控三条流水线。
+使用 Claude Code skill [`sync-upstream`](.claude/skills/sync-upstream/SKILL.md)（仅显式调用）同步上游 [kiali/kiali-operator](https://github.com/kiali/kiali-operator) 到本仓库，自动完成：源码复制与版本裁剪（保留最新 3 个版本快照 + default）、[alauda-mesh/kiali](https://github.com/alauda-mesh/kiali) 构建分支（`kiali-<版本>`）创建、VERSION/Makefile/CSV/CRD/wolfi/apko/流水线的版本更新、一致性校验、创建 PR 并监控三条流水线。
 
 用法（在仓库根目录的 Claude Code 会话中）：
 

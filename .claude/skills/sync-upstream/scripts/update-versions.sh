@@ -111,21 +111,25 @@ done
 
 # ============ 3. wolfi 构建配置 ============
 TEMPLATE_WOLFI="$(ls wolfi/kiali-*.yaml | sort -V | tail -1)"
+TEMPLATE_VER="$(basename "$TEMPLATE_WOLFI" .yaml)"; TEMPLATE_VER="${TEMPLATE_VER#kiali-}"
 NEW_WOLFI="wolfi/kiali-${NEW_VERSION}.yaml"
 if [[ "$TEMPLATE_WOLFI" != "$NEW_WOLFI" ]]; then
   cp "$TEMPLATE_WOLFI" "$NEW_WOLFI"
   [[ "$SAME_MINOR" == "true" ]] && rm "$TEMPLATE_WOLFI"
 fi
+# 构建源来自 alauda-mesh/kiali fork 的 kiali-<版本> 分支：
+# 全文替换 kiali-<模板版本> → kiali-<新版本>，一并覆盖 branch: 行与日志 echo 行
+sed -i "s|kiali-${TEMPLATE_VER//./\\.}|kiali-${NEW_VERSION}|g" "$NEW_WOLFI"
 sed -i -E "s|^  name: kiali-[0-9.]+$|  name: kiali-${NEW_MINOR#v}|" "$NEW_WOLFI"
 sed -i -E "s|^  version: \".*\"$|  version: \"${NEW_VERSION}\"|" "$NEW_WOLFI"
 sed -i -E "s|^  epoch: .*$|  epoch: 0|" "$NEW_WOLFI"
-sed -i -E "s|expected-commit: .*$|expected-commit: ${KIALI_COMMIT}|" "$NEW_WOLFI"
 for d in $DROP_MINORS; do rm -f wolfi/kiali-"${d#v}".*.yaml; done
 
 ok "wolfi: ${NEW_WOLFI} name=kiali-${NEW_MINOR#v}" grep -q "^  name: kiali-${NEW_MINOR#v}$" "$NEW_WOLFI"
 ok "wolfi: ${NEW_WOLFI} version=${NEW_VERSION} epoch=0" \
   bash -c "grep -q '^  version: \"${NEW_VERSION}\"$' '$NEW_WOLFI' && grep -q '^  epoch: 0$' '$NEW_WOLFI'"
-ok "wolfi: ${NEW_WOLFI} expected-commit=${KIALI_COMMIT}" grep -q "expected-commit: ${KIALI_COMMIT}" "$NEW_WOLFI"
+ok "wolfi: ${NEW_WOLFI} 构建分支 branch: kiali-${NEW_VERSION}" grep -q "branch: kiali-${NEW_VERSION}$" "$NEW_WOLFI"
+ok "wolfi: ${NEW_WOLFI} 使用 alauda-mesh/kiali fork 源" grep -q "repository: https://github.com/alauda-mesh/kiali$" "$NEW_WOLFI"
 
 # ============ 4. apko 镜像配置 ============
 TEMPLATE_APKO="$(ls configs/kiali/v*.apko.yaml | sort -V | tail -1)"
@@ -160,4 +164,4 @@ if [[ ${#FAILURES[@]} -gt 0 ]]; then
   printf ' - %s\n' "${FAILURES[@]}"
   exit 2
 fi
-echo "DONE: 机械更新全部完成。下一步: 按 SKILL.md 步骤 3 编辑三条 workflow 并审阅 wolfi/CSV。"
+echo "DONE: 机械更新全部完成。下一步: 按 SKILL.md 步骤 4 编辑三条 workflow 并审阅 wolfi/CSV。"

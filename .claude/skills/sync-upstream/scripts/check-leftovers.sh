@@ -103,9 +103,21 @@ fi
 # ---------- wolfi / apko ----------
 NEW_WOLFI="wolfi/kiali-${NEW_VERSION}.yaml"
 check "wolfi: ${NEW_WOLFI} 存在" test -f "$NEW_WOLFI"
-check "wolfi: expected-commit == ${KIALI_COMMIT}" grep -q "expected-commit: ${KIALI_COMMIT}" "$NEW_WOLFI"
+check "wolfi: 使用 alauda-mesh/kiali fork 源" grep -q "repository: https://github.com/alauda-mesh/kiali$" "$NEW_WOLFI"
+check "wolfi: 构建分支 == kiali-${NEW_VERSION}" grep -q "branch: kiali-${NEW_VERSION}$" "$NEW_WOLFI"
 check "wolfi: name/epoch 正确（kiali-${NEW_MINOR_NO_V} / epoch 0）" \
   bash -c "grep -q '^  name: kiali-${NEW_MINOR_NO_V}$' '$NEW_WOLFI' && grep -q '^  epoch: 0$' '$NEW_WOLFI'"
+# fork 远端分支存在性（流水线 git-checkout 的硬依赖，缺了必挂）
+if FORK_LS="$(git ls-remote "$FORK_KIALI_URL" "refs/heads/kiali-${NEW_VERSION}" 2>/dev/null)"; then
+  FORK_HEAD="$(echo "$FORK_LS" | awk '{print $1}')"
+  if [[ -n "$FORK_HEAD" ]]; then
+    pass "fork: alauda-mesh/kiali 存在分支 kiali-${NEW_VERSION}（head ${FORK_HEAD:0:8}）"
+  else
+    fail "fork: alauda-mesh/kiali 缺少分支 kiali-${NEW_VERSION}，请先执行 sync-kiali-fork.sh"
+  fi
+else
+  WARNED=$((WARNED+1)); warn "fork: 查询 alauda-mesh/kiali 分支失败（网络问题？），请手动确认分支 kiali-${NEW_VERSION} 存在"
+fi
 KEEP_COUNT="$(echo "$KEEP_MINORS" | wc -w)"
 check "wolfi: 配置文件数量 == ${KEEP_COUNT}" bash -c "[[ \$(ls wolfi/kiali-*.yaml | wc -l) -eq ${KEEP_COUNT} ]]"
 NEW_APKO="configs/kiali/v${NEW_VERSION}.apko.yaml"
@@ -118,4 +130,4 @@ if [[ $FAIL -gt 0 ]]; then
   echo "RESULT: ${FAIL} 项 FAIL（另有 ${WARNED} 项 WARN）。请修复 FAIL 项后重跑本脚本。"
   exit 1
 fi
-echo "RESULT: 全部通过（${WARNED} 项 WARN 需在汇报中说明）。下一步: 提交 commit 并按 SKILL.md 步骤 5 汇报。"
+echo "RESULT: 全部通过（${WARNED} 项 WARN 需在汇报中说明）。下一步: 提交 commit 并按 SKILL.md 步骤 6 汇报。"

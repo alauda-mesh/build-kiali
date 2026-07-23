@@ -29,7 +29,7 @@ git fetch origin "$TARGET_BRANCH" || die "fetch origin/$TARGET_BRANCH 失败"
 OLD_VERSION="$(git show "origin/$TARGET_BRANCH:kiali-operator/VERSION")"
 [[ "$OLD_VERSION" != "$NEW_VERSION" ]] || die "VERSION 已是 $NEW_VERSION，无需同步"
 
-# ---------- 解析 kiali/kiali 的 expected-commit（wolfi 构建用） ----------
+# ---------- 解析 kiali/kiali tag 的 commit（sync-kiali-fork.sh 创建/校验构建分支用） ----------
 info "解析 kiali/kiali tag ${NEW_TAG} 的 commit ..."
 KIALI_COMMIT="$(git ls-remote "$UPSTREAM_KIALI_URL" "refs/tags/${NEW_TAG}^{}" | awk '{print $1}')"
 if [[ -z "$KIALI_COMMIT" ]]; then
@@ -151,10 +151,10 @@ echo "版本: $OLD_VERSION -> $NEW_VERSION（同 minor 升级: $SAME_MINOR）"
 echo "保留版本: $(echo "$KEEP_MINORS" | paste -sd' ' -) + default"
 echo "移除版本: $(echo "$DROP_MINORS" | paste -sd' ' -)"
 [[ -n "$RESTORED" ]] && echo "RESTORED（上游已删、从原分支恢复）:${RESTORED}"
-echo "expected-commit(kiali/kiali): $KIALI_COMMIT"
+echo "kiali/kiali tag commit: $KIALI_COMMIT（fork 构建分支的创建基准）"
 echo "commit: $(git rev-parse --short HEAD) $(git log -1 --format=%s)"
 echo
 echo "变更概览:"
 git show --stat HEAD | tail -5
 echo
-echo "下一步: 执行 update-versions.sh"
+echo "下一步: 执行 sync-kiali-fork.sh（确保 alauda-mesh/kiali 构建分支存在）"

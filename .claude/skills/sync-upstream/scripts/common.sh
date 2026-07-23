@@ -4,8 +4,10 @@
 set -euo pipefail
 
 REPO="alauda-mesh/build-kiali"
-UPSTREAM_OPERATOR_URL="https://github.com/kiali/kiali-operator.git"
-UPSTREAM_KIALI_URL="https://github.com/kiali/kiali.git"
+UPSTREAM_OPERATOR_URL="${UPSTREAM_OPERATOR_URL:-https://github.com/kiali/kiali-operator.git}"
+UPSTREAM_KIALI_URL="${UPSTREAM_KIALI_URL:-https://github.com/kiali/kiali.git}"
+# kiali server 源码构建使用的 fork（wolfi git-checkout 从它的 kiali-<版本> 分支拉源码）
+FORK_KIALI_URL="${FORK_KIALI_URL:-https://github.com/alauda-mesh/kiali.git}"
 
 die() { echo "ERROR: $*" >&2; exit 1; }
 warn() { echo "WARN: $*"; }
