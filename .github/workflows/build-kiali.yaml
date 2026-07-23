@@ -44,6 +44,7 @@ jobs:
     outputs:
       version: ${{ steps.set-matrix.outputs.version }}
       package-configs: ${{ steps.set-matrix.outputs.package-configs }}
+      source-metadata: ${{ steps.set-matrix.outputs.source-metadata }}
       has-version: ${{ steps.set-matrix.outputs.has-version }}
 
     steps:
@@ -87,6 +88,32 @@ jobs:
 
           PACKAGE_CONFIGS=$(jq -r '.[] | "kiali-" + (ltrimstr("v")) + ".yaml"' <<< "$VERSIONS" | paste -sd, -)
 
+          SOURCE_METADATA='{}'
+          while IFS= read -r VERSION; do
+            MELANGE_CONFIG="wolfi/kiali-${VERSION#v}.yaml"
+            SOURCE_REPOSITORY=$(awk '$1 == "repository:" { print $2; exit }' "$MELANGE_CONFIG")
+            SOURCE_REF=$(awk '$1 == "branch:" { print $2; exit }' "$MELANGE_CONFIG")
+
+            if [[ -z "$SOURCE_REPOSITORY" || -z "$SOURCE_REF" ]]; then
+              echo "::error::无法从 ${MELANGE_CONFIG} 读取 Kiali 源仓库或分支"
+              exit 1
+            fi
+
+            SOURCE_REVISION=$(git ls-remote --exit-code "$SOURCE_REPOSITORY" "refs/heads/${SOURCE_REF}" | awk 'NR == 1 { print $1 }')
+            if [[ -z "$SOURCE_REVISION" ]]; then
+              echo "::error::无法解析 ${SOURCE_REPOSITORY} 分支 ${SOURCE_REF} 的提交"
+              exit 1
+            fi
+
+            SOURCE_METADATA=$(jq -cn \
+              --argjson metadata "$SOURCE_METADATA" \
+              --arg version "$VERSION" \
+              --arg source "$SOURCE_REPOSITORY" \
+              --arg revision "$SOURCE_REVISION" \
+              --arg ref_name "$SOURCE_REF" \
+              '$metadata + {($version): {source: $source, revision: $revision, ref_name: $ref_name}}')
+          done < <(jq -r '.[]' <<< "$VERSIONS")
+
           if [[ "$VERSIONS" == "[]" ]]; then
             echo "::notice::generate-kiali-version result: []，所有 epoch 均为空，本次构建直接结束。"
             echo "has-version=false" >> "$GITHUB_OUTPUT"
@@ -97,6 +124,7 @@ jobs:
 
           echo "version=$VERSIONS" >> "$GITHUB_OUTPUT"
           echo "package-configs=$PACKAGE_CONFIGS" >> "$GITHUB_OUTPUT"
+          echo "source-metadata=$SOURCE_METADATA" >> "$GITHUB_OUTPUT"
 
   build-packages:
     name: Build kiali packages (${{ matrix.arch }})
@@ -116,6 +144,26 @@ jobs:
           APK_LIST="${{ needs.generate-kiali-version.outputs.package-configs }}"
           echo "APK_LIST=$APK_LIST" >> $GITHUB_ENV
           echo "::notice::build-kiali package list: ${APK_LIST}"
+
+      - name: Pin Kiali source revisions
+        shell: bash
+        env:
+          VERSIONS: ${{ needs.generate-kiali-version.outputs.version }}
+          SOURCE_METADATA: ${{ needs.generate-kiali-version.outputs.source-metadata }}
+        run: |
+          while IFS= read -r VERSION; do
+            MELANGE_CONFIG="wolfi/kiali-${VERSION#v}.yaml"
+            SOURCE_REVISION=$(jq -r --arg version "$VERSION" '.[$version].revision' <<< "$SOURCE_METADATA")
+
+            awk -v revision="$SOURCE_REVISION" '
+              { print }
+              /^[[:space:]]+branch:/ {
+                match($0, /^[[:space:]]*/)
+                print substr($0, RSTART, RLENGTH) "expected-commit: " revision
+              }
+            ' "$MELANGE_CONFIG" > "${MELANGE_CONFIG}.tmp"
+            mv "${MELANGE_CONFIG}.tmp" "$MELANGE_CONFIG"
+          done < <(jq -r '.[]' <<< "$VERSIONS")
 
       # Write the signing key from GitHub Secret
       - name: Write signing key
@@ -172,6 +220,24 @@ jobs:
           pattern: packages-*
           merge-multiple: true
           path: packages
+
+      - name: Add Kiali provenance metadata
+        shell: bash
+        env:
+          VERSION: ${{ matrix.version }}
+          APKO_CONFIG: configs/kiali/${{ matrix.version }}.apko.yaml
+          SOURCE_METADATA: ${{ needs.generate-kiali-version.outputs.source-metadata }}
+        run: |
+          SOURCE=$(jq -r --arg version "$VERSION" '.[$version].source' <<< "$SOURCE_METADATA")
+          SOURCE_REVISION=$(jq -r --arg version "$VERSION" '.[$version].revision' <<< "$SOURCE_METADATA")
+          SOURCE_REF=$(jq -r --arg version "$VERSION" '.[$version].ref_name' <<< "$SOURCE_METADATA")
+
+          {
+            printf '\nannotations:\n'
+            printf '  org.opencontainers.image.source: "%s"\n' "$SOURCE"
+            printf '  org.opencontainers.image.revision: "%s"\n' "$SOURCE_REVISION"
+            printf '  org.opencontainers.image.ref.name: "%s"\n' "$SOURCE_REF"
+          } >> "$APKO_CONFIG"
 
       - name: Build kiali image
         if: github.event_name == 'pull_request'
