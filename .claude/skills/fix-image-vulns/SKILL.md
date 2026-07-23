@@ -13,6 +13,7 @@ disable-model-invocation: true
 ## 参数
 
 - `$ARGUMENTS`：Build Kiali Images 流水线 run（纯数字 ID 或 run URL），或 1~3 个完整镜像地址（空格分隔），如 `build-harbor.alauda.cn/asm/kiali:v2.22.2-rt.1`。
+- 参数里可能混有给助手的备注文字（如"顺便记录坑点"），只把 run / 镜像地址部分传给 resolve-images.sh，备注按用户附加要求执行。
 - 参数为空时用 AskUserQuestion 向用户询问，不要自行猜测。
 - 只处理 kiali server 镜像；kiali-operator / kiali-operator-bundle 的漏洞不在本 skill 范围（脚本会拦截并说明）。
 
@@ -52,7 +53,7 @@ bash "$SKILL_DIR/scripts/scan-images.sh"                  # 逐镜像扫描 + �
 拉镜像+扫描可能要几分钟，scan 的 Bash 调用把 timeout 设为 600000。无论结果如何，先向用户输出扫描摘要（每镜像漏洞数、SUMMARY 分类计数、go.mod 修复目标表）。然后按 `RESULT:` 分支：
 
 - **CLEAN**：无漏洞，汇报后直接结束；
-- **REPORT_ONLY**：只有 os / stdlib 级漏洞，列出明细并说明不在修复范围（stdlib 类可提示用户：重新触发一次构建即可带最新 go 消除），结束；
+- **REPORT_ONLY**：剩余均为不修复项——os / stdlib 级漏洞，或无修复版本的 go module（没有可升级目标，开修复轮也是空转）。列出明细并说明原因（stdlib 类可提示用户：重新触发一次构建即可带最新 go 消除），结束；
 - **FIX_NEEDED**：对 `FIX_VERSIONS` 中的每个版本执行步骤 2~3。
 
 ## 步骤 2：修复 go.mod（逐版本）
@@ -65,8 +66,9 @@ bash "$SKILL_DIR/scripts/gomod-bump.sh" <worktree> <module@v版本> [module@v版
 升级目标以 scan 输出的"go.mod 修复目标"表为准（目标 = 覆盖该包全部 CVE 的最高修复候选；trivy 给的候选没有 v 前缀，`go get` 时要加上）。注意：
 
 - 库之间有依赖约束，实际落位版本可能高于 trivy 给的修复候选，属正常，脚本会打印实际版本；
-- `go get` 报 `A@vX requires B@vY, not B@vZ`：把 B 的目标提到 vY 重跑（vY 更高，CVE 覆盖不受影响）。`golang.org/x/*` 系列互相牵制时常见；
+- `go get` 报 `A@vX requires B@vY, not B@vZ`：把 B 的目标提到 vY 重跑（vY 更高，CVE 覆盖不受影响）。`golang.org/x/*` 系列互相牵制时常见（如 x/net 新版会牵动 x/sys、x/crypto）；同批多版本依次修复时，把前面版本实测学到的落位版本直接用于后续版本，省一轮报错重试；
 - 同一发布系列的包（如 `go.opentelemetry.io/otel` 与 `otel/sdk`）版本要对齐，统一取其中最高者；
+- `go get` 可能顺带提升 go.mod 的 go directive（如 1.24 → 1.25）及若干间接依赖，构建流水线不固定 go 版本，属正常连带变更，在 PR 正文说明一句即可；
 - 无修复版本的 CVE 升级修不了，记入最终汇报的"未修复项"；
 - 构建失败时分析原因（版本冲突、新版本要求更高 go、API 变更），能明确解决就解决，拿不准就带着报错向用户提问，不要凭猜测大版本连锁升级。
 
@@ -88,7 +90,7 @@ bash "$SKILL_DIR/scripts/create-pr.sh" <版本> <正文文件>    # 输出 PR_NU
 
 ## 步骤 4：等用户 review 与合并
 
-向用户汇报每个 PR 的链接与修复内容摘要，请用户 review、没问题就合并。**本回合到此结束**：不要自行 merge，不要继续步骤 5。用户答复已合并后再继续。
+向用户汇报每个 PR 的链接与修复内容摘要，请用户 review、没问题就合并。**本回合到此结束**：不要自行 merge，不要继续步骤 5。用户答复已合并、或明确授权代合并（此时用 `gh pr merge <PR号> --repo alauda-mesh/kiali --merge` 逐个合并）后再继续；未获授权不得自行 merge。
 
 ## 步骤 5：触发并监控流水线
 
@@ -109,8 +111,9 @@ epoch 用当前时间（YYYYmmddHHMM）保证不与历史重复，无需查询�
 bash "$SKILL_DIR/scripts/scan-images.sh"          # 状态已指向新镜像，即回归扫描
 ```
 
-- **CLEAN / REPORT_ONLY**：修复完成，进入最终汇报；
+- **CLEAN / REPORT_ONLY**：修复完成，进入最终汇报（剩余项全部为"无修复版本"的 go module 时 scan 会判 REPORT_ONLY，不要再开修复轮）；
 - **FIX_NEEDED**：先分析为什么还有漏洞（上轮目标版本仍带 CVE？升级未生效？新版本引入新漏洞？），再回到步骤 2 继续（ROUND 已 +1，会创建新一轮修复分支）→ 步骤 3 → 4 → 5。
+- 回归对比时的正常现象：同一模块同一版本在不同镜像报告可能不一致——某镜像的二进制未实际链接该模块时（build info 无记录）就不报，不代表扫描失灵。
 
 **最多 3 轮修复**。到限仍未清零时停止，如实汇报剩余漏洞、已尝试的措施和失败原因，让用户决策。
 

@@ -81,27 +81,33 @@ if [[ "$GOMOD" -gt 0 ]]; then
   echo "--- go.mod 修复目标（按 版本/包 聚合；目标 = 覆盖全部 CVE 的最高修复候选，go get 时注意加 v 前缀）---"
   while IFS=$'\t' read -r ver pkg; do
     inst="$(awk -F'\t' -v v="$ver" -v p="$pkg" '$1=="GO_MODULE" && $2==v && $3==p {print $4; exit}' "$TSV")"
-    cves="$(awk -F'\t' -v v="$ver" -v p="$pkg" '$1=="GO_MODULE" && $2==v && $3==p' "$TSV" | wc -l)"
+    # 可修/不可修分开计数：升级只覆盖有修复候选的 CVE，混在一起会高估修复效果
+    cves_fix="$(awk -F'\t' -v v="$ver" -v p="$pkg" '$1=="GO_MODULE" && $2==v && $3==p && $5!=""' "$TSV" | wc -l)"
+    cves_nofix="$(awk -F'\t' -v v="$ver" -v p="$pkg" '$1=="GO_MODULE" && $2==v && $3==p && $5==""' "$TSV" | wc -l)"
     # 该包全部 CVE 都无修复版本时 grep 会选不出任何行，pipefail 下不能让它中断脚本
     cands="$(awk -F'\t' -v v="$ver" -v p="$pkg" '$1=="GO_MODULE" && $2==v && $3==p {print $5}' "$TSV" \
       | tr ',' '\n' | grep -v '^$' | sort -uV || true)"
     if [[ -n "$cands" ]]; then
+      extra=""
+      [[ "$cves_nofix" -gt 0 ]] && extra="（另 ${cves_nofix} 条无修复版本，升级修不掉）"
       target="$(tail -1 <<<"$cands")"
-      echo "  [$ver] $pkg $inst  CVE×${cves}  候选: $(paste -sd'/' - <<<"$cands")  → go get ${pkg}@v${target}"
+      echo "  [$ver] $pkg $inst  CVE×${cves_fix}${extra}  候选: $(paste -sd'/' - <<<"$cands")  → go get ${pkg}@v${target}"
     else
-      echo "  [$ver] $pkg $inst  CVE×${cves}  （无修复版本，升级修不了，最终汇报中如实说明）"
+      echo "  [$ver] $pkg $inst  CVE×${cves_nofix}  （无修复版本，升级修不了，最终汇报中如实说明）"
     fi
   done < <(awk -F'\t' '$1=="GO_MODULE" {print $2 "\t" $3}' "$TSV" | sort -u)
 fi
 
 echo
 echo "SUMMARY: TOTAL=${TOTAL} GO_MODULE=${GOMOD} GO_STDLIB=${STDLIB} OS_REPORT_ONLY=${OS} UNKNOWN=${UNK}"
+# 可执行修复 = 有修复候选的 GO_MODULE，或需人工判断的 UNKNOWN；
+# GO_MODULE 全部无修复版本时没有可升级目标，按 REPORT_ONLY 收尾，避免空转一轮修复
+FIX_VERSIONS="$(awk -F'\t' '($1=="GO_MODULE" && $5!="") || $1=="UNKNOWN" {print $2}' "$TSV" | sort -uV | paste -sd' ' -)"
 if [[ "$TOTAL" -eq 0 ]]; then
   echo "RESULT: CLEAN"
-elif [[ "$GOMOD" -eq 0 && "$UNK" -eq 0 ]]; then
-  echo "RESULT: REPORT_ONLY（只有 os / go stdlib 级漏洞，不在修复范围，如实报告；stdlib 类重新构建即可消除）"
-else
-  FIX_VERSIONS="$(awk -F'\t' '$1=="GO_MODULE" || $1=="UNKNOWN" {print $2}' "$TSV" | sort -uV | paste -sd' ' -)"
+elif [[ -n "$FIX_VERSIONS" ]]; then
   echo "RESULT: FIX_NEEDED"
   echo "FIX_VERSIONS=${FIX_VERSIONS}"
+else
+  echo "RESULT: REPORT_ONLY（剩余均为不修复项：os / go stdlib 级漏洞，或无修复版本的 go module；stdlib 类重新构建即可消除）"
 fi
