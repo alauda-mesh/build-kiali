@@ -3,14 +3,14 @@ run-name: >-
   ${{
     github.event_name == 'workflow_dispatch'
     && format(
-      'Build Kiali Operator Bundle (tag={0}, operator_tag={1}, kiali_v2_22_tag={2}, kiali_v2_17_tag={3}, kiali_v2_11_tag={4})',
+      'Build Kiali Operator Bundle (tag={0}, operator_tag={1}, kiali_v2_27_tag={2}, kiali_v2_22_tag={3}, kiali_v2_17_tag={4})',
       inputs.tag,
       inputs.operator_tag,
+      inputs.kiali_v2_27_tag,
       inputs.kiali_v2_22_tag,
-      inputs.kiali_v2_17_tag,
-      inputs.kiali_v2_11_tag
+      inputs.kiali_v2_17_tag
     )
-    || format('{0} (Build Bundle {1}-pr.{2}.{3})', github.event.pull_request.title, 'v2.22.2', github.event.pull_request.number, github.run_number)
+    || format('{0} (Build Bundle {1}-pr.{2}.{3})', github.event.pull_request.title, 'v2.27.1', github.event.pull_request.number, github.run_number)
   }}
 
 env:
@@ -26,11 +26,15 @@ on:
     inputs:
       tag:
         description: Bundle tag
-        default: "v2.22.2-r0"
+        default: "v2.27.1-r0"
         required: true
       operator_tag:
         description: Operator tag
-        default: "2.22.2-r0"
+        default: "2.27.1-r0"
+        required: true
+      kiali_v2_27_tag:
+        description: Kiali v2.27 image tag
+        default: "v2.27.1-r0"
         required: true
       kiali_v2_22_tag:
         description: Kiali v2.22 image tag
@@ -39,10 +43,6 @@ on:
       kiali_v2_17_tag:
         description: Kiali v2.17 image tag
         default: "v2.17.1-r0"
-        required: true
-      kiali_v2_11_tag:
-        description: Kiali v2.11 image tag
-        default: "v2.11.0-r0"
         required: true
 
 jobs:
@@ -80,9 +80,9 @@ jobs:
 
             echo "KIALI_OPERATOR_BUNDLE_VERSION=${BUNDLE_TAG#v}" >> $GITHUB_ENV
             echo "KIALI_OPERATOR_VERSION=${OPERATOR_TAG#v}" >> $GITHUB_ENV
-            echo "KIALI_2_11_VERSION=${{ inputs.kiali_v2_11_tag }}" >> $GITHUB_ENV
             echo "KIALI_2_17_VERSION=${{ inputs.kiali_v2_17_tag }}" >> $GITHUB_ENV
             echo "KIALI_2_22_VERSION=${{ inputs.kiali_v2_22_tag }}" >> $GITHUB_ENV
+            echo "KIALI_2_27_VERSION=${{ inputs.kiali_v2_27_tag }}" >> $GITHUB_ENV
           else
             BUNDLE_VERSION=$(make print-variables | grep 'KIALI_OPERATOR_BUNDLE_VERSION =' | cut -d '=' -f 2 | tr -d ' ')
             BUNDLE_TAG="v${BUNDLE_VERSION}-pr.${{ github.event.pull_request.number }}.${{ github.run_number }}"
