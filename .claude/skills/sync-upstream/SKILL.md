@@ -116,6 +116,7 @@ bash "$SKILL_DIR/scripts/watch-pipelines.sh"
 - **PIPELINE_SUCCESS（0）**：全部成功，把各流水线链接加入最终汇报；
 - **PIPELINE_FAILED（2）**：输出已附失败 job 概览与日志摘要。分析失败原因：定位失败 step，判断是本次同步引入（新版本源码构建不兼容、前端工具链变化、CSV/bundle 校验失败、workflow 编辑错误）还是环境问题（runner、registry 登录、代理）。需要更多日志时用 `gh run view <run-id> --repo alauda-mesh/build-kiali --log-failed`。属同步引入的问题：修复 → 新 commit → `git push origin HEAD`（PR 会自动触发新一轮流水线）→ 重新后台运行 watch-pipelines.sh；拿不准的修复先向用户提问；
 - **PIPELINE_TIMEOUT（3）**：告知用户流水线仍在运行，附 run 链接；
-- **PIPELINE_NOT_FOUND（4）**：按脚本提示排查（runner 不在线、paths 未触发），如实告知用户。
+- **PIPELINE_NOT_FOUND（4）**：按脚本提示排查（runner 不在线、paths 未触发），如实告知用户；
+- **其他退出码（如 1）**：脚本自身异常（历史上出现过 gh 瞬时网络错误被 `set -e` 终止，已在脚本内加重试防护），读后台输出定位原因，必要时修脚本后重新后台运行。
 
 最后补充汇报：PR 链接 + 三条流水线结果（成功链接 / 失败原因分析）。到此流程结束，等用户 review 与合并；不要自行 merge PR。
