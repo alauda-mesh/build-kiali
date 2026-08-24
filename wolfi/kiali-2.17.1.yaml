@@ -15,6 +15,7 @@ environment:
   contents:
     packages:
       - automake
+      - bash
       - busybox
       - ca-certificates-bundle
       - go
